@@ -1,13 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function generateStaticParams() {
-  const activities = await prisma.activity.findMany();
-  return activities.map((activity) => ({
-    id: activity.id,
-  }));
-}
-
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
