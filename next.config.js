@@ -3,9 +3,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  basePath: '/Sales-manegment',
-  assetPrefix: '/Sales-manegment/',
-  trailingSlash: true,
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
