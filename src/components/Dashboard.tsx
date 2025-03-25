@@ -2,195 +2,337 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, Pencil, Trash2, X, Check } from 'lucide-react';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { ja } from 'date-fns/locale';
 
-interface ChartData {
-  name: string;
-  取得率: number;
-  商談化率: number;
-  成約率: number;
+interface Activity {
+  id: string;
+  date: string;
+  approaches: number;
+  prospects: number;
+  meetings: number;
+  contracts: number;
+  salesperson: {
+    id: string;
+    name: string;
+  };
 }
 
-interface KPIs {
-  今月アプローチ数: number;
-  今月アポ数: number;
-  今月商談数: number;
-  今月トライアル数: number;
-  今月契約数: number;
-  今月アポ取得率: string;
-  今月商談化率: string;
-  今月成約率: string;
+interface DashboardData {
+  totalApproaches: number;
+  totalProspects: number;
+  totalMeetings: number;
+  totalContracts: number;
+  prospectRate: number;
+  meetingRate: number;
+  contractRate: number;
 }
 
-interface SalesPerson {
-  id: number;
-  name: string;
-  アプローチ数: number;
-  アポ数: number;
-  商談数: number;
-  契約数: number;
+interface EditingActivity {
+  id: string;
+  approaches: number;
+  prospects: number;
+  meetings: number;
+  contracts: number;
 }
 
-const Dashboard = () => {
-  // ダミーデータ - 実際にはGoogleスプレッドシートから取得
-  const [weeklyData, setWeeklyData] = useState([
-    { name: '週1', 取得率: 28, 商談化率: 65, 成約率: 22 },
-    { name: '週2', 取得率: 32, 商談化率: 58, 成約率: 25 },
-    { name: '週3', 取得率: 35, 商談化率: 62, 成約率: 30 },
-    { name: '週4', 取得率: 40, 商談化率: 70, 成約率: 35 }
-  ]);
+export default function Dashboard() {
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    format(new Date(), 'yyyy-MM')
+  );
+  const [editingActivity, setEditingActivity] = useState<EditingActivity | null>(null);
 
-  const [monthlyData, setMonthlyData] = useState([
-    { name: '1月', 取得率: 30, 商談化率: 60, 成約率: 25 },
-    { name: '2月', 取得率: 32, 商談化率: 62, 成約率: 28 },
-    { name: '3月', 取得率: 35, 商談化率: 65, 成約率: 30 }
-  ]);
+  const fetchActivities = async () => {
+    try {
+      const start = format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd');
+      const end = format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd');
+      
+      const response = await fetch(
+        `/api/activities?startDate=${start}&endDate=${end}`
+      );
+      
+      if (!response.ok) throw new Error('データの取得に失敗しました');
+      
+      const data = await response.json();
+      setActivities(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const [kpis, setKpis] = useState({
-    今月アプローチ数: 320,
-    今月アポ数: 96,
-    今月商談数: 64,
-    今月トライアル数: 28,
-    今月契約数: 18,
-    今月アポ取得率: '30.0%',
-    今月商談化率: '66.7%',
-    今月成約率: '28.1%'
-  });
+  useEffect(() => {
+    fetchActivities();
+  }, [selectedMonth]);
 
-  const [salesPersons, setSalesPersons] = useState([
-    { id: 1, name: '鈴木', アプローチ数: 120, アポ数: 38, 商談数: 25, 契約数: 8 },
-    { id: 2, name: '田中', アプローチ数: 105, アポ数: 30, 商談数: 20, 契約数: 6 },
-    { id: 3, name: '佐藤', アプローチ数: 95, アポ数: 28, 商談数: 19, 契約数: 4 }
-  ]);
+  const calculateMetrics = (): DashboardData => {
+    const totalApproaches = activities.reduce((sum, act) => sum + act.approaches, 0);
+    const totalProspects = activities.reduce((sum, act) => sum + act.prospects, 0);
+    const totalMeetings = activities.reduce((sum, act) => sum + act.meetings, 0);
+    const totalContracts = activities.reduce((sum, act) => sum + act.contracts, 0);
+
+    return {
+      totalApproaches,
+      totalProspects,
+      totalMeetings,
+      totalContracts,
+      prospectRate: totalApproaches ? (totalProspects / totalApproaches) * 100 : 0,
+      meetingRate: totalProspects ? (totalMeetings / totalProspects) * 100 : 0,
+      contractRate: totalMeetings ? (totalContracts / totalMeetings) * 100 : 0,
+    };
+  };
+
+  const handleEdit = (activity: Activity) => {
+    setEditingActivity({
+      id: activity.id,
+      approaches: activity.approaches,
+      prospects: activity.prospects,
+      meetings: activity.meetings,
+      contracts: activity.contracts,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingActivity(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingActivity) return;
+
+    try {
+      const response = await fetch(`/api/activities/${editingActivity.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editingActivity),
+      });
+
+      if (!response.ok) throw new Error('活動データの更新に失敗しました');
+
+      fetchActivities();
+      setEditingActivity(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('この活動データを削除してもよろしいですか？')) return;
+
+    try {
+      const response = await fetch(`/api/activities/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('活動データの削除に失敗しました');
+
+      fetchActivities();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+    }
+  };
+
+  const handleEditInputChange = (field: keyof EditingActivity, value: string) => {
+    if (!editingActivity) return;
+    setEditingActivity({
+      ...editingActivity,
+      [field]: parseInt(value) || 0,
+    });
+  };
+
+  const metrics = calculateMetrics();
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center p-6">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6">営業活動ダッシュボード</h1>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">営業活動ダッシュボード</h2>
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="px-3 py-2 border rounded-md"
+        />
+      </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-md">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-gray-500">今月アプローチ数</CardTitle>
+          <CardHeader>
+            <CardTitle>今月のアプローチ数</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{kpis.今月アプローチ数}</p>
+            <div className="text-3xl font-bold">{metrics.totalApproaches}</div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-gray-500">今月アポ数</CardTitle>
+          <CardHeader>
+            <CardTitle>今月のアポ数</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{kpis.今月アポ数}</p>
-            <p className="text-xs text-blue-600">取得率: {kpis.今月アポ取得率}</p>
+            <div className="text-3xl font-bold">{metrics.totalProspects}</div>
+            <div className="text-sm text-gray-500">
+              取得率: {metrics.prospectRate.toFixed(1)}%
+            </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-gray-500">今月商談数</CardTitle>
+          <CardHeader>
+            <CardTitle>今月の商談数</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{kpis.今月商談数}</p>
-            <p className="text-xs text-blue-600">商談化率: {kpis.今月商談化率}</p>
+            <div className="text-3xl font-bold">{metrics.totalMeetings}</div>
+            <div className="text-sm text-gray-500">
+              商談化率: {metrics.meetingRate.toFixed(1)}%
+            </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-gray-500">今月契約数</CardTitle>
+          <CardHeader>
+            <CardTitle>今月の契約数</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{kpis.今月契約数}</p>
-            <p className="text-xs text-blue-600">成約率: {kpis.今月成約率}</p>
+            <div className="text-3xl font-bold">{metrics.totalContracts}</div>
+            <div className="text-sm text-gray-500">
+              成約率: {metrics.contractRate.toFixed(1)}%
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="weekly">
-        <TabsList className="mb-4">
-          <TabsTrigger value="weekly">週次データ</TabsTrigger>
-          <TabsTrigger value="monthly">月次データ</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="weekly">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>週次推移</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="取得率" stroke="#8884d8" />
-                    <Line type="monotone" dataKey="商談化率" stroke="#82ca9d" />
-                    <Line type="monotone" dataKey="成約率" stroke="#ffc658" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="monthly">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>月次推移</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="取得率" fill="#8884d8" />
-                    <Bar dataKey="商談化率" fill="#82ca9d" />
-                    <Bar dataKey="成約率" fill="#ffc658" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
       <Card>
         <CardHeader>
-          <CardTitle>営業担当者別パフォーマンス</CardTitle>
+          <CardTitle>活動データ一覧</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">担当者</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">アプローチ数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">アポ数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">商談数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">契約数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">アポ取得率</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">商談化率</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">成約率</th>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="px-4 py-2 text-left">日付</th>
+                  <th className="px-4 py-2 text-left">担当者</th>
+                  <th className="px-4 py-2 text-right">アプローチ</th>
+                  <th className="px-4 py-2 text-right">アポ</th>
+                  <th className="px-4 py-2 text-right">商談</th>
+                  <th className="px-4 py-2 text-right">契約</th>
+                  <th className="px-4 py-2 text-center">操作</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {salesPersons.map((person) => (
-                  <tr key={person.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{person.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{person.アプローチ数}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{person.アポ数}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{person.商談数}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{person.契約数}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{((person.アポ数 / person.アプローチ数) * 100).toFixed(1)}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{((person.商談数 / person.アポ数) * 100).toFixed(1)}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{((person.契約数 / person.商談数) * 100).toFixed(1)}%</td>
+              <tbody>
+                {activities.map((activity) => (
+                  <tr key={activity.id} className="border-b">
+                    <td className="px-4 py-2">
+                      {format(new Date(activity.date), 'M/d (E)', { locale: ja })}
+                    </td>
+                    <td className="px-4 py-2">{activity.salesperson.name}</td>
+                    {editingActivity?.id === activity.id ? (
+                      <>
+                        <td className="px-4 py-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={editingActivity.approaches}
+                            onChange={(e) => handleEditInputChange('approaches', e.target.value)}
+                            className="w-20"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={editingActivity.prospects}
+                            onChange={(e) => handleEditInputChange('prospects', e.target.value)}
+                            className="w-20"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={editingActivity.meetings}
+                            onChange={(e) => handleEditInputChange('meetings', e.target.value)}
+                            className="w-20"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={editingActivity.contracts}
+                            onChange={(e) => handleEditInputChange('contracts', e.target.value)}
+                            className="w-20"
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          <div className="flex justify-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleSaveEdit}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleCancelEdit}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-2 text-right">{activity.approaches}</td>
+                        <td className="px-4 py-2 text-right">{activity.prospects}</td>
+                        <td className="px-4 py-2 text-right">{activity.meetings}</td>
+                        <td className="px-4 py-2 text-right">{activity.contracts}</td>
+                        <td className="px-4 py-2 text-center">
+                          <div className="flex justify-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(activity)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(activity.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -200,6 +342,4 @@ const Dashboard = () => {
       </Card>
     </div>
   );
-};
-
-export default Dashboard; 
+} 
