@@ -35,23 +35,11 @@ export interface ProspectData {
 
 export async function getSalesData(): Promise<SalesData[]> {
   try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'SalesData!A2:G',
-    });
-
-    const rows = response.data.values;
-    if (!rows) return [];
-
-    return rows.map(row => ({
-      date: row[0],
-      salesPerson: row[1],
-      approaches: parseInt(row[2]) || 0,
-      appointments: parseInt(row[3]) || 0,
-      meetings: parseInt(row[4]) || 0,
-      trials: parseInt(row[5]) || 0,
-      contracts: parseInt(row[6]) || 0,
-    }));
+    const response = await fetch('/api/sales');
+    if (!response.ok) {
+      throw new Error('Failed to fetch sales data');
+    }
+    return response.json();
   } catch (error) {
     console.error('Error fetching sales data:', error);
     return [];
@@ -60,22 +48,11 @@ export async function getSalesData(): Promise<SalesData[]> {
 
 export async function getProspects(): Promise<ProspectData[]> {
   try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'Prospects!A2:F',
-    });
-
-    const rows = response.data.values;
-    if (!rows) return [];
-
-    return rows.map(row => ({
-      companyName: row[0],
-      contactPerson: row[1],
-      status: row[2],
-      nextAction: row[3],
-      nextActionDate: row[4],
-      amount: parseInt(row[5]) || 0,
-    }));
+    const response = await fetch('/api/prospects');
+    if (!response.ok) {
+      throw new Error('Failed to fetch prospects');
+    }
+    return response.json();
   } catch (error) {
     console.error('Error fetching prospects:', error);
     return [];
@@ -84,22 +61,17 @@ export async function getProspects(): Promise<ProspectData[]> {
 
 export async function addSalesData(data: SalesData): Promise<void> {
   try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'SalesData!A2:G',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [[
-          data.date,
-          data.salesPerson,
-          data.approaches,
-          data.appointments,
-          data.meetings,
-          data.trials,
-          data.contracts,
-        ]],
+    const response = await fetch('/api/sales', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify(data),
     });
+
+    if (!response.ok) {
+      throw new Error('Failed to add sales data');
+    }
   } catch (error) {
     console.error('Error adding sales data:', error);
     throw error;
@@ -108,21 +80,17 @@ export async function addSalesData(data: SalesData): Promise<void> {
 
 export async function addProspect(data: ProspectData): Promise<void> {
   try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'Prospects!A2:F',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [[
-          data.companyName,
-          data.contactPerson,
-          data.status,
-          data.nextAction,
-          data.nextActionDate,
-          data.amount,
-        ]],
+    const response = await fetch('/api/prospects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify(data),
     });
+
+    if (!response.ok) {
+      throw new Error('Failed to add prospect');
+    }
   } catch (error) {
     console.error('Error adding prospect:', error);
     throw error;
