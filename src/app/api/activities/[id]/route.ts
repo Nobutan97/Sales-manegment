@@ -46,4 +46,30 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const activity = await prisma.activity.findUnique({
+      where: {
+        id: params.id,
+      },
+    });
+    if (!activity) {
+      return NextResponse.json(
+        { error: '指定された活動データが見つかりません' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(activity);
+  } catch (error) {
+    console.error('Error fetching activity:', error);
+    return NextResponse.json(
+      { error: '活動データの取得に失敗しました' },
+      { status: 500 }
+    );
+  }
 } 
