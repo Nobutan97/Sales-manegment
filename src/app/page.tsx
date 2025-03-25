@@ -6,6 +6,7 @@ import DailyInputForm from "@/components/DailyInputForm"
 import Dashboard from "@/components/Dashboard"
 import ProspectManagement from "@/components/ProspectManagement"
 import PersonalDashboard from "@/components/PersonalDashboard"
+import SalespersonManagement from '@/components/SalespersonManagement';
 
 export default function Home() {
   return (
@@ -39,6 +40,10 @@ export default function Home() {
             </TabsContent>
           </Tabs>
         </Suspense>
+
+        <div className="grid gap-6">
+          <SalespersonManagement />
+        </div>
       </div>
     </div>
   )
