@@ -35,7 +35,7 @@ export default function SalespersonManagement() {
     fetchSalespersons();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
@@ -111,7 +111,7 @@ export default function SalespersonManagement() {
             <Input
               type="text"
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
               placeholder="担当者名"
               required
             />

@@ -21,6 +21,7 @@ export default function Home() {
               <TabsTrigger value="personal">担当者別</TabsTrigger>
               <TabsTrigger value="daily-input">日次入力</TabsTrigger>
               <TabsTrigger value="prospects">案件管理</TabsTrigger>
+              <TabsTrigger value="salespersons">担当者管理</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard">
@@ -38,12 +39,12 @@ export default function Home() {
             <TabsContent value="prospects">
               <ProspectManagement />
             </TabsContent>
+
+            <TabsContent value="salespersons">
+              <SalespersonManagement />
+            </TabsContent>
           </Tabs>
         </Suspense>
-
-        <div className="grid gap-6">
-          <SalespersonManagement />
-        </div>
       </div>
     </div>
   )
