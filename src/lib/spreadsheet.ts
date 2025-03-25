@@ -3,9 +3,12 @@ import { JWT } from 'google-auth-library';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
+// 認証情報の設定
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
+
 const auth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  email: credentials.client_email,
+  key: credentials.private_key,
   scopes: SCOPES,
 });
 
@@ -33,8 +36,8 @@ export interface ProspectData {
 export async function getSalesData(): Promise<SalesData[]> {
   try {
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.SPREADSHEET_ID,
-      range: 'SalesData!A2:F',
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: 'SalesData!A2:G',
     });
 
     const rows = response.data.values;
@@ -43,11 +46,11 @@ export async function getSalesData(): Promise<SalesData[]> {
     return rows.map(row => ({
       date: row[0],
       salesPerson: row[1],
-      approaches: parseInt(row[2]),
-      appointments: parseInt(row[3]),
-      meetings: parseInt(row[4]),
-      trials: parseInt(row[5]),
-      contracts: parseInt(row[6]),
+      approaches: parseInt(row[2]) || 0,
+      appointments: parseInt(row[3]) || 0,
+      meetings: parseInt(row[4]) || 0,
+      trials: parseInt(row[5]) || 0,
+      contracts: parseInt(row[6]) || 0,
     }));
   } catch (error) {
     console.error('Error fetching sales data:', error);
@@ -58,7 +61,7 @@ export async function getSalesData(): Promise<SalesData[]> {
 export async function getProspects(): Promise<ProspectData[]> {
   try {
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.SPREADSHEET_ID,
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: 'Prospects!A2:F',
     });
 
@@ -71,7 +74,7 @@ export async function getProspects(): Promise<ProspectData[]> {
       status: row[2],
       nextAction: row[3],
       nextActionDate: row[4],
-      amount: parseInt(row[5]),
+      amount: parseInt(row[5]) || 0,
     }));
   } catch (error) {
     console.error('Error fetching prospects:', error);
@@ -82,8 +85,8 @@ export async function getProspects(): Promise<ProspectData[]> {
 export async function addSalesData(data: SalesData): Promise<void> {
   try {
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.SPREADSHEET_ID,
-      range: 'SalesData!A2:F',
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: 'SalesData!A2:G',
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[
@@ -106,7 +109,7 @@ export async function addSalesData(data: SalesData): Promise<void> {
 export async function addProspect(data: ProspectData): Promise<void> {
   try {
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.SPREADSHEET_ID,
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: 'Prospects!A2:F',
       valueInputOption: 'USER_ENTERED',
       requestBody: {
