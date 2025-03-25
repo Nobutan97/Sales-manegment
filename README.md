@@ -31,15 +31,21 @@ npm install
 3. 環境変数の設定
 `.env.local`ファイルを作成し、以下の環境変数を設定してください：
 ```
-GOOGLE_CLIENT_EMAIL=your-service-account-email@your-project.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY=your-private-key
-SPREADSHEET_ID=your-spreadsheet-id
+GOOGLE_SHEET_ID=your-spreadsheet-id
+GOOGLE_CREDENTIALS=your-credentials-json
 ```
 
 4. 開発サーバーの起動
 ```bash
 npm run dev
 ```
+
+## デプロイ
+
+このアプリケーションはGitHub Pagesにデプロイされています。
+以下のURLでアクセスできます：
+
+https://nobutan97.github.io/Sales-manegment/
 
 ## スプレッドシートの設定
 1. Google Cloud Consoleで新しいプロジェクトを作成
