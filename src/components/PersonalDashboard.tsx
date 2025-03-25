@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getSalesData, getProspects, SalesData, ProspectData } from '@/lib/spreadsheet';
+import { SalesData, ProspectData } from '@/lib/spreadsheet';
 
 interface PersonalKPI {
   salesPerson: string;
@@ -60,20 +60,29 @@ const PersonalDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const [salesResponse, prospectsResponse] = await Promise.all([
+          fetch('/api/sales'),
+          fetch('/api/prospects')
+        ]);
+
+        if (!salesResponse.ok || !prospectsResponse.ok) {
+          throw new Error('Failed to fetch data');
+        }
+
         const [salesData, prospects] = await Promise.all([
-          getSalesData(),
-          getProspects()
+          salesResponse.json() as Promise<SalesData[]>,
+          prospectsResponse.json() as Promise<ProspectData[]>
         ]);
 
         // KPIデータの計算
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
-        const monthData = salesData.filter(data => {
+        const monthData = salesData.filter((data: SalesData) => {
           const [year, month] = data.date.split('-').map(Number);
           return year === currentYear && month === currentMonth;
         });
 
-        const totalData = monthData.reduce((acc, curr) => ({
+        const totalData = monthData.reduce((acc: { アプローチ数: number; アポ数: number; 商談数: number; 契約数: number }, curr: SalesData) => ({
           アプローチ数: acc.アプローチ数 + curr.approaches,
           アポ数: acc.アポ数 + curr.appointments,
           商談数: acc.商談数 + curr.meetings,
@@ -93,7 +102,7 @@ const PersonalDashboard = () => {
         setKpiData(kpi);
 
         // 時系列データの設定
-        const timeData = salesData.map(data => ({
+        const timeData = salesData.map((data: SalesData) => ({
           date: data.date,
           アプローチ数: data.approaches,
           アポ数: data.appointments,
@@ -107,9 +116,9 @@ const PersonalDashboard = () => {
         setTimeSeriesData(timeData);
 
         // パイプラインデータの設定
-        const pipeline = prospects.reduce((acc, prospect) => {
+        const pipeline = prospects.reduce((acc: Pipeline[], prospect: ProspectData) => {
           const stage = prospect.status;
-          const existingStage = acc.find(s => s.ステージ === stage);
+          const existingStage = acc.find((s: Pipeline) => s.ステージ === stage);
           
           if (existingStage) {
             existingStage.件数++;
@@ -134,7 +143,7 @@ const PersonalDashboard = () => {
             });
           }
           return acc;
-        }, [] as Pipeline[]);
+        }, []);
 
         setPipelineData(pipeline);
 
