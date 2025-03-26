@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { SalesData, ProspectData } from '@/lib/spreadsheet';
+import { fetchFromGAS } from '@/lib/gas-client';
 
 interface PersonalKPI {
   salesPerson: string;
@@ -49,31 +50,26 @@ interface ActivityAnalysis {
   商談件数: number;
 }
 
-const PersonalDashboard = () => {
+const PersonalDashboard = ({ salespersonId }: { salespersonId: string }) => {
   const [selectedPerson, setSelectedPerson] = useState('1');
   const [kpiData, setKpiData] = useState<PersonalKPI | null>(null);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [pipelineData, setPipelineData] = useState<Pipeline[]>([]);
   const [activityData, setActivityData] = useState<ActivityAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [salesResponse, prospectsResponse] = await Promise.all([
-          fetch('/api/sales'),
-          fetch('/api/prospects')
-        ]);
-
-        if (!salesResponse.ok || !prospectsResponse.ok) {
-          throw new Error('Failed to fetch data');
+        const response = await fetchFromGAS();
+        if (!response.success) {
+          throw new Error(response.message || 'データの取得に失敗しました');
         }
-
-        const [salesData, prospects] = await Promise.all([
-          salesResponse.json() as Promise<SalesData[]>,
-          prospectsResponse.json() as Promise<ProspectData[]>
-        ]);
-
+        
+        const salesData = response.data?.sales || [];
+        const prospectsData = response.data?.prospects || [];
+        
         // KPIデータの計算
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
@@ -116,7 +112,7 @@ const PersonalDashboard = () => {
         setTimeSeriesData(timeData);
 
         // パイプラインデータの設定
-        const pipeline = prospects.reduce((acc: Pipeline[], prospect: ProspectData) => {
+        const pipeline = prospectsData.filter(p => p.salespersonId === salespersonId).reduce((acc: Pipeline[], prospect: ProspectData) => {
           const stage = prospect.status;
           const existingStage = acc.find((s: Pipeline) => s.ステージ === stage);
           
@@ -158,14 +154,14 @@ const PersonalDashboard = () => {
 
         setActivityData(activity);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [selectedPerson]);
+  }, [salespersonId]);
 
   if (loading) {
     return <div>データを読み込み中...</div>;

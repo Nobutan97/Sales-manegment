@@ -4,6 +4,7 @@ import React, { useState, ChangeEvent, FormEvent } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
+import { postToGAS } from '@/lib/gas-client';
 
 interface FormData {
   date: string;
@@ -45,16 +46,9 @@ const DailyInputForm = () => {
     setSuccess(false);
 
     try {
-      const response = await fetch('/api/sales', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('データの送信に失敗しました');
+      const response = await postToGAS('sales', formData);
+      if (!response.success) {
+        throw new Error(response.message || 'データの送信に失敗しました');
       }
 
       setSuccess(true);
@@ -67,8 +61,8 @@ const DailyInputForm = () => {
         trials: 0,
         contracts: 0
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
     } finally {
       setIsSubmitting(false);
     }

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Pencil, Trash2, X, Check } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
 
 interface Activity {
   id: string;
@@ -48,28 +49,24 @@ export default function Dashboard() {
   );
   const [editingActivity, setEditingActivity] = useState<EditingActivity | null>(null);
 
-  const fetchActivities = async () => {
+  const fetchActivities = async (start: string, end: string) => {
     try {
-      const start = format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd');
-      const end = format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd');
-      
-      const response = await fetch(
-        `/api/activities?startDate=${start}&endDate=${end}`
-      );
-      
-      if (!response.ok) throw new Error('データの取得に失敗しました');
-      
-      const data = await response.json();
-      setActivities(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+      const response = await fetchFromGAS();
+      if (!response.success) {
+        throw new Error(response.message || 'データの取得に失敗しました');
+      }
+      const activities = response.data?.activities || [];
+      setActivities(activities);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchActivities();
+    fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
   }, [selectedMonth]);
 
   const calculateMetrics = (): DashboardData => {
@@ -89,14 +86,16 @@ export default function Dashboard() {
     };
   };
 
-  const handleEdit = (activity: Activity) => {
-    setEditingActivity({
-      id: activity.id,
-      approaches: activity.approaches,
-      prospects: activity.prospects,
-      meetings: activity.meetings,
-      contracts: activity.contracts,
-    });
+  const handleEdit = async (activity: Activity) => {
+    try {
+      const response = await postToGAS('activities/update', activity);
+      if (!response.success) {
+        throw new Error(response.message || '活動データの更新に失敗しました');
+      }
+      await fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
+    }
   };
 
   const handleCancelEdit = () => {
@@ -107,36 +106,28 @@ export default function Dashboard() {
     if (!editingActivity) return;
 
     try {
-      const response = await fetch(`/api/activities/${editingActivity.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editingActivity),
-      });
-
-      if (!response.ok) throw new Error('活動データの更新に失敗しました');
-
-      fetchActivities();
+      const response = await postToGAS('activities/update', editingActivity);
+      if (!response.success) {
+        throw new Error(response.message || '活動データの更新に失敗しました');
+      }
+      await fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
       setEditingActivity(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('この活動データを削除してもよろしいですか？')) return;
+    if (!confirm('このデータを削除してもよろしいですか？')) return;
 
     try {
-      const response = await fetch(`/api/activities/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('活動データの削除に失敗しました');
-
-      fetchActivities();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+      const response = await postToGAS('activities/delete', { id });
+      if (!response.success) {
+        throw new Error(response.message || '活動データの削除に失敗しました');
+      }
+      await fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
     }
   };
 
