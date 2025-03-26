@@ -14,14 +14,16 @@ interface Status {
   name: string;
 }
 
-interface Prospect extends Omit<GASProspect, 'status'> {
-  status: number;
-  companyName: string;
-  contactName: string;
-  contactInfo: string;
-  nextAction: string;
-  nextActionDate: string;
-  salespersonId: string;
+interface Prospect {
+  id: string;
+  company: string;
+  contact: string;
+  email: string;
+  status: string;
+  notes: string;
+  salesperson_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface FormData {
@@ -39,7 +41,7 @@ interface ProspectListProps {
   statuses: Status[];
   onEdit: (prospect: Prospect) => void;
   onDelete: (id: string) => void;
-  onStatusChange: (id: string, newStatus: number) => void;
+  onStatusChange: (id: string, newStatus: string) => void;
 }
 
 const ProspectManagement = () => {
@@ -89,8 +91,12 @@ const ProspectManagement = () => {
     
     try {
       const body = {
-        ...formData,
-        salespersonId: salespersonId || undefined
+        company: formData.companyName,
+        contact: formData.contactName,
+        email: formData.contactInfo,
+        status: formData.status.toString(),
+        notes: formData.notes,
+        salesperson_id: salespersonId || undefined
       };
 
       if (editingId) {
@@ -129,12 +135,12 @@ const ProspectManagement = () => {
   // 案件の編集
   const handleEdit = (prospect: Prospect) => {
     setFormData({
-      companyName: prospect.companyName,
-      contactName: prospect.contactName,
-      contactInfo: prospect.contactInfo,
-      status: prospect.status,
-      nextAction: prospect.nextAction,
-      nextActionDate: prospect.nextActionDate,
+      companyName: prospect.company,
+      contactName: prospect.contact,
+      contactInfo: prospect.email,
+      status: parseInt(prospect.status),
+      nextAction: prospect.notes,
+      nextActionDate: prospect.updated_at,
       notes: prospect.notes
     });
     setEditingId(prospect.id);
@@ -161,22 +167,12 @@ const ProspectManagement = () => {
   const fetchProspects = async () => {
     try {
       const response = await fetchFromGAS();
-      if (!response.success) {
+      if (!response.success || !response.data) {
         throw new Error(response.message || '案件データの取得に失敗しました');
       }
       
-      const gasProspects = response.data?.prospects || [];
-      const convertedProspects: Prospect[] = gasProspects.map(p => ({
-        ...p,
-        companyName: p.company,
-        contactName: p.contact,
-        contactInfo: p.email,
-        status: parseInt(p.status),
-        nextAction: p.notes,
-        nextActionDate: p.updated_at,
-        salespersonId: p.salesperson_id
-      }));
-      setProspects(convertedProspects);
+      const prospects = response.data.prospects || [];
+      setProspects(prospects);
       setError(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
@@ -193,24 +189,23 @@ const ProspectManagement = () => {
   // フィルター関数
   const filterProspects = (prospects: Prospect[], statusId: string) => {
     if (statusId === 'all') return prospects;
-    return prospects.filter(p => p.status === parseInt(statusId));
+    return prospects.filter(p => p.status === statusId);
   };
 
   // ステータス変更ハンドラ
-  const handleStatusChange = async (id: string, newStatus: number) => {
+  const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       const prospect = prospects.find(p => p.id === id);
       if (!prospect) return;
 
-      const response = await fetch(`/api/prospects?id=${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...prospect, status: newStatus }),
+      const response = await postToGAS('prospects/update', {
+        id,
+        status: newStatus,
       });
 
-      if (!response.ok) throw new Error('ステータスの更新に失敗しました');
+      if (!response.success) {
+        throw new Error(response.message || 'ステータスの更新に失敗しました');
+      }
 
       // データを再取得
       fetchProspects();
@@ -418,21 +413,21 @@ const ProspectManagement = () => {
 };
 
 // 案件リストコンポーネント
-const ProspectList = ({ prospects, statuses, onEdit, onDelete, onStatusChange }: ProspectListProps) => {
+const ProspectList: React.FC<ProspectListProps> = ({ prospects, statuses, onEdit, onDelete, onStatusChange }) => {
   // ステータス名を取得する関数
-  const getStatusName = (statusId: number) => {
-    const status = statuses.find(s => s.id === statusId);
+  const getStatusName = (statusId: string) => {
+    const status = statuses.find(s => s.id.toString() === statusId);
     return status ? status.name : '不明';
   };
 
   // ステータスに応じた背景色を取得
-  const getStatusColor = (statusId: number) => {
+  const getStatusColor = (statusId: string) => {
     switch(statusId) {
-      case 1: return 'bg-gray-100';
-      case 2: return 'bg-blue-100';
-      case 3: return 'bg-yellow-100';
-      case 4: return 'bg-green-100';
-      case 5: return 'bg-purple-100';
+      case '1': return 'bg-gray-100';
+      case '2': return 'bg-blue-100';
+      case '3': return 'bg-yellow-100';
+      case '4': return 'bg-green-100';
+      case '5': return 'bg-purple-100';
       default: return 'bg-gray-100';
     }
   };
@@ -456,11 +451,11 @@ const ProspectList = ({ prospects, statuses, onEdit, onDelete, onStatusChange }:
             {prospects.map((prospect) => (
               <tr key={prospect.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="font-medium text-gray-900">{prospect.companyName}</div>
+                  <div className="font-medium text-gray-900">{prospect.company}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div>{prospect.contactName}</div>
-                  <div className="text-sm text-gray-500">{prospect.contactInfo}</div>
+                  <div>{prospect.contact}</div>
+                  <div className="text-sm text-gray-500">{prospect.email}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(prospect.status)}`}>
@@ -468,8 +463,8 @@ const ProspectList = ({ prospects, statuses, onEdit, onDelete, onStatusChange }:
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div>{prospect.nextAction}</div>
-                  <div className="text-xs text-gray-400">{prospect.nextActionDate}</div>
+                  <div>{prospect.notes}</div>
+                  <div className="text-xs text-gray-400">{prospect.updated_at}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <Button
@@ -488,11 +483,11 @@ const ProspectList = ({ prospects, statuses, onEdit, onDelete, onStatusChange }:
                   </Button>
                   <select
                     value={prospect.status}
-                    onChange={(e) => onStatusChange(prospect.id, parseInt(e.target.value))}
+                    onChange={(e) => onStatusChange(prospect.id, e.target.value)}
                     className="ml-2 text-sm border rounded p-1"
                   >
                     {statuses.map(status => (
-                      <option key={status.id} value={status.id}>
+                      <option key={status.id} value={status.id.toString()}>
                         {status.name}に変更
                       </option>
                     ))}

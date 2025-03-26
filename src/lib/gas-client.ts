@@ -50,7 +50,10 @@ export type GASAction =
   | 'addProspect'
   | 'addActivity'
   | 'updateActivity'
-  | 'deleteActivity';
+  | 'deleteActivity'
+  | 'prospects/update'
+  | 'prospects/delete'
+  | 'prospects/create';
 
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL;
 
