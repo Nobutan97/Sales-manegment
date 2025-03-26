@@ -45,62 +45,42 @@ export interface SheetData {
 }
 
 export type GASAction = 
-  | 'addSalesperson' 
-  | 'updateSalesperson'
-  | 'deleteSalesperson'
-  | 'addProspect' 
+  | 'addSalesperson'
+  | 'addProspect'
   | 'addActivity'
   | 'updateActivity'
-  | 'deleteActivity'
-  | 'prospects/update'
-  | 'prospects/delete'
-  | 'prospects/create'
-  | 'salespersons';
+  | 'deleteActivity';
 
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL;
 
-export async function fetchFromGAS(): Promise<GASResponse<SheetData>> {
+export interface GASResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface SalespersonResponse {
+  salespersons: Salesperson[];
+}
+
+export const fetchFromGAS = async (): Promise<GASResponse<SalespersonResponse>> => {
   try {
-    if (!GAS_URL) {
-      throw new Error('GAS_URLが設定されていません');
-    }
-
-    console.log('Fetching from GAS URL:', GAS_URL);
-
-    const response = await fetch(GAS_URL, {
+    const response = await fetch(process.env.NEXT_PUBLIC_GAS_URL || '', {
       method: 'GET',
       mode: 'cors',
-      credentials: 'omit',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      cache: 'no-store',
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GAS response error:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorText,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-      throw new Error(`データの取得に失敗しました (${response.status}: ${response.statusText})`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const result = await response.json();
-    console.log('GAS response:', result);
-
-    if (!result.success) {
-      throw new Error(result.message || 'データの取得に失敗しました');
-    }
-    return result;
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error fetching from GAS:', error);
     throw error;
   }
-}
+};
 
 export async function postToGAS<T = any>(
   action: GASAction,

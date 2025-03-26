@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, ChangeEvent, FormEvent } from 'react';
+import React, { useState, ChangeEvent, FormEvent, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
-import { postToGAS } from '@/lib/gas-client';
+import { postToGAS, fetchFromGAS } from '@/lib/gas-client';
 import { useToast } from '@/components/ui/use-toast';
+import type { Salesperson } from '@/lib/gas-client';
 
 interface FormData {
   date: string;
@@ -20,6 +21,7 @@ interface FormData {
 const DailyInputForm = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [formData, setFormData] = useState<FormData>({
     date: new Date().toISOString().split('T')[0],
     salesperson_id: '',
@@ -33,11 +35,32 @@ const DailyInputForm = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  // 営業担当者データの取得
+  useEffect(() => {
+    const fetchSalespersons = async () => {
+      try {
+        const response = await fetchFromGAS();
+        if (response.success && response.data?.salespersons) {
+          setSalespersons(response.data.salespersons);
+        }
+      } catch (error) {
+        console.error('Failed to fetch salespersons:', error);
+        toast({
+          title: 'エラー',
+          description: '営業担当者データの取得に失敗しました',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchSalespersons();
+  }, [toast]);
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'date' ? value : Number(value)
+      [name]: name === 'date' ? value : name === 'salesperson_id' ? value : Number(value)
     }));
   };
 
@@ -120,17 +143,23 @@ const DailyInputForm = () => {
               </div>
               <div>
                 <label htmlFor="salesperson_id" className="block text-sm font-medium">
-                  営業担当者ID
+                  営業担当者
                 </label>
-                <input
-                  type="text"
+                <select
                   id="salesperson_id"
                   name="salesperson_id"
                   value={formData.salesperson_id}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   required
-                />
+                >
+                  <option value="">選択してください</option>
+                  {salespersons.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -210,22 +239,17 @@ const DailyInputForm = () => {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    保存中...
-                  </div>
-                ) : (
-                  '保存する'
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <Loader2 className="animate-spin mx-auto" />
+              ) : (
+                '保存'
+              )}
+            </button>
           </div>
         </form>
       </CardContent>
