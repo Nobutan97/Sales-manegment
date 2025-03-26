@@ -5,23 +5,20 @@ const nextConfig = {
     unoptimized: true,
   },
   basePath: '/Sales-manegment',
-  assetPrefix: '/Sales-manegment/',
+  assetPrefix: '/Sales-manegment',
   trailingSlash: true,
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
+      fs: false,
       net: false,
       tls: false,
-      fs: false,
-      http2: false,
-      child_process: false,
-      'node:events': false,
-      'node:process': false,
+      dns: false,
     };
     return config;
   },
   env: {
-    NEXT_PUBLIC_GAS_URL: 'https://script.google.com/macros/s/AKfycbwWiIWzH59AJ7QaRMy2WsVd0nUMIg-z8kkWZ_QWzlAGKpq_l-HSlTiz5pYaVSFumXzZwA/exec',
+    NEXT_PUBLIC_GAS_URL: process.env.GAS_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
   },
 };
 
