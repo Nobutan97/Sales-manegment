@@ -8,19 +8,8 @@ import { Loader2, Pencil, Trash2, X, Check } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
-
-interface Activity {
-  id: string;
-  date: string;
-  approaches: number;
-  prospects: number;
-  meetings: number;
-  contracts: number;
-  salesperson: {
-    id: string;
-    name: string;
-  };
-}
+import type { DailyActivity } from '@/lib/gas-client';
+import { useToast } from '@/components/ui/use-toast';
 
 interface DashboardData {
   totalApproaches: number;
@@ -32,16 +21,11 @@ interface DashboardData {
   contractRate: number;
 }
 
-interface EditingActivity {
-  id: string;
-  approaches: number;
-  prospects: number;
-  meetings: number;
-  contracts: number;
-}
+interface EditingActivity extends DailyActivity {}
 
 export default function Dashboard() {
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const { toast } = useToast();
+  const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(
@@ -49,31 +33,34 @@ export default function Dashboard() {
   );
   const [editingActivity, setEditingActivity] = useState<EditingActivity | null>(null);
 
-  const fetchActivities = async (start: string, end: string) => {
+  const fetchData = async () => {
     try {
       const response = await fetchFromGAS();
-      if (!response.success) {
-        throw new Error(response.message || 'データの取得に失敗しました');
+      if (response.success && response.data) {
+        setActivities(response.data.activities || []);
+      } else {
+        throw new Error('データの取得に失敗しました');
       }
-      const activities = response.data?.activities || [];
-      setActivities(activities);
-      setError(null);
     } catch (error) {
-      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
+      toast({
+        title: 'エラー',
+        description: error instanceof Error ? error.message : 'データの取得に失敗しました',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
-  }, [selectedMonth]);
+    fetchData();
+  }, []);
 
   const calculateMetrics = (): DashboardData => {
-    const totalApproaches = activities.reduce((sum, act) => sum + act.approaches, 0);
-    const totalProspects = activities.reduce((sum, act) => sum + act.prospects, 0);
-    const totalMeetings = activities.reduce((sum, act) => sum + act.meetings, 0);
-    const totalContracts = activities.reduce((sum, act) => sum + act.contracts, 0);
+    const totalApproaches = activities.reduce((sum, activity) => sum + activity.approaches, 0);
+    const totalProspects = activities.reduce((sum, activity) => sum + activity.appointments, 0);
+    const totalMeetings = activities.reduce((sum, activity) => sum + activity.meetings, 0);
+    const totalContracts = activities.reduce((sum, activity) => sum + activity.contracts, 0);
 
     return {
       totalApproaches,
@@ -86,15 +73,19 @@ export default function Dashboard() {
     };
   };
 
-  const handleEdit = async (activity: Activity) => {
+  const handleEdit = async (activity: DailyActivity) => {
     try {
-      const response = await postToGAS('activities/update', activity);
+      const response = await postToGAS('updateActivity', activity);
       if (!response.success) {
         throw new Error(response.message || '活動データの更新に失敗しました');
       }
-      await fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
+      await fetchData();
     } catch (error) {
-      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
+      toast({
+        title: 'エラー',
+        description: error instanceof Error ? error.message : '活動データの更新に失敗しました',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -106,11 +97,11 @@ export default function Dashboard() {
     if (!editingActivity) return;
 
     try {
-      const response = await postToGAS('activities/update', editingActivity);
+      const response = await postToGAS('updateActivity', editingActivity);
       if (!response.success) {
         throw new Error(response.message || '活動データの更新に失敗しました');
       }
-      await fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
+      await fetchData();
       setEditingActivity(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
@@ -121,13 +112,17 @@ export default function Dashboard() {
     if (!confirm('このデータを削除してもよろしいですか？')) return;
 
     try {
-      const response = await postToGAS('activities/delete', { id });
+      const response = await postToGAS('deleteActivity', { id });
       if (!response.success) {
         throw new Error(response.message || '活動データの削除に失敗しました');
       }
-      await fetchActivities(format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'), format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd'));
+      await fetchData();
     } catch (error) {
-      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
+      toast({
+        title: 'エラー',
+        description: error instanceof Error ? error.message : '活動データの削除に失敗しました',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -144,7 +139,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center p-6">
+        <CardContent className="flex justify-center py-6">
           <Loader2 className="h-6 w-6 animate-spin" />
         </CardContent>
       </Card>
@@ -169,49 +164,37 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
-          <CardHeader>
-            <CardTitle>今月のアプローチ数</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">アプローチ数</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{metrics.totalApproaches}</div>
+            <div className="text-2xl font-bold">{metrics.totalApproaches}</div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader>
-            <CardTitle>今月のアポ数</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">アポイント数</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{metrics.totalProspects}</div>
-            <div className="text-sm text-gray-500">
-              取得率: {metrics.prospectRate.toFixed(1)}%
-            </div>
+            <div className="text-2xl font-bold">{metrics.totalProspects}</div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader>
-            <CardTitle>今月の商談数</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">商談数</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{metrics.totalMeetings}</div>
-            <div className="text-sm text-gray-500">
-              商談化率: {metrics.meetingRate.toFixed(1)}%
-            </div>
+            <div className="text-2xl font-bold">{metrics.totalMeetings}</div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader>
-            <CardTitle>今月の契約数</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">契約数</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{metrics.totalContracts}</div>
-            <div className="text-sm text-gray-500">
-              成約率: {metrics.contractRate.toFixed(1)}%
-            </div>
+            <div className="text-2xl font-bold">{metrics.totalContracts}</div>
           </CardContent>
         </Card>
       </div>
@@ -256,8 +239,8 @@ export default function Dashboard() {
                           <Input
                             type="number"
                             min="0"
-                            value={editingActivity.prospects}
-                            onChange={(e) => handleEditInputChange('prospects', e.target.value)}
+                            value={editingActivity.appointments}
+                            onChange={(e) => handleEditInputChange('appointments', e.target.value)}
                             className="w-20"
                           />
                         </td>
@@ -301,7 +284,7 @@ export default function Dashboard() {
                     ) : (
                       <>
                         <td className="px-4 py-2 text-right">{activity.approaches}</td>
-                        <td className="px-4 py-2 text-right">{activity.prospects}</td>
+                        <td className="px-4 py-2 text-right">{activity.appointments}</td>
                         <td className="px-4 py-2 text-right">{activity.meetings}</td>
                         <td className="px-4 py-2 text-right">{activity.contracts}</td>
                         <td className="px-4 py-2 text-center">

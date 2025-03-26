@@ -44,7 +44,12 @@ export interface SheetData {
   activities: DailyActivity[];
 }
 
-export type GASAction = 'addSalesperson' | 'addProspect' | 'addActivity';
+export type GASAction = 
+  | 'addSalesperson' 
+  | 'addProspect' 
+  | 'addActivity'
+  | 'updateActivity'
+  | 'deleteActivity';
 
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL;
 
