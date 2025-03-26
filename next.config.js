@@ -18,7 +18,7 @@ const nextConfig = {
     return config;
   },
   env: {
-    NEXT_PUBLIC_GAS_URL: process.env.GAS_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
+    NEXT_PUBLIC_GAS_URL: 'https://script.google.com/macros/s/AKfycbwWiIWzH59AJ7QaRMy2WsVd0nUMIg-z8kkWZ_QWzlAGKpq_l-HSlTiz5pYaVSFumXzZwA/exec',
   },
 };
 
