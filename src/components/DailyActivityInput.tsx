@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Salesperson {
   id: string;
@@ -24,9 +25,10 @@ interface DailyActivity {
 }
 
 export default function DailyActivityInput() {
+  const { toast } = useToast();
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<DailyActivity>({
@@ -54,43 +56,53 @@ export default function DailyActivityInput() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.salesperson_id) {
-      setError('営業担当者を選択してください');
-      return;
-    }
-
     setSubmitting(true);
+
     try {
-      const response = await postToGAS('activities', formData);
-      if (!response.success) {
-        throw new Error(response.message || '活動記録の追加に失敗しました');
-      }
-      
-      // フォームをリセット（日付は今日の日付を保持）
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        salesperson_id: '',
-        approaches: 0,
-        appointments: 0,
-        meetings: 0,
-        trials: 0,
-        contracts: 0
+      const response = await postToGAS('addActivity', {
+        date: formData.date,
+        salesperson_id: formData.salesperson_id,
+        approaches: formData.approaches,
+        appointments: formData.appointments,
+        meetings: formData.meetings,
+        trials: formData.trials,
+        contracts: formData.contracts
       });
-      setError(null);
+      
+      if (response.success) {
+        toast({
+          title: '成功',
+          description: '活動記録を保存しました',
+        });
+        
+        // 数値フィールドをリセット
+        setFormData(prev => ({
+          ...prev,
+          approaches: 0,
+          appointments: 0,
+          meetings: 0,
+          trials: 0,
+          contracts: 0
+        }));
+      }
     } catch (error) {
-      console.error('Error adding activity:', error);
-      setError(error instanceof Error ? error.message : '活動記録の追加に失敗しました');
+      toast({
+        title: 'エラー',
+        description: error instanceof Error ? error.message : '活動記録の保存に失敗しました',
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleInputChange = (field: keyof DailyActivity, value: string | number) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [name]: name === 'date' ? value : Number(value)
     }));
   };
 
@@ -121,8 +133,10 @@ export default function DailyActivityInput() {
               <label className="text-sm font-medium">日付</label>
               <Input
                 type="date"
+                id="date"
+                name="date"
                 value={formData.date}
-                onChange={(e) => handleInputChange('date', e.target.value)}
+                onChange={handleChange}
                 required
               />
             </div>
@@ -130,7 +144,7 @@ export default function DailyActivityInput() {
               <label className="text-sm font-medium">営業担当者</label>
               <Select
                 value={formData.salesperson_id}
-                onValueChange={(value) => handleInputChange('salesperson_id', value)}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, salesperson_id: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="選択してください" />
@@ -151,18 +165,22 @@ export default function DailyActivityInput() {
               <label className="text-sm font-medium">アプローチ数</label>
               <Input
                 type="number"
-                min="0"
+                id="approaches"
+                name="approaches"
                 value={formData.approaches}
-                onChange={(e) => handleInputChange('approaches', parseInt(e.target.value) || 0)}
+                onChange={handleChange}
+                min="0"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">アポイントメント数</label>
               <Input
                 type="number"
-                min="0"
+                id="appointments"
+                name="appointments"
                 value={formData.appointments}
-                onChange={(e) => handleInputChange('appointments', parseInt(e.target.value) || 0)}
+                onChange={handleChange}
+                min="0"
               />
             </div>
           </div>
@@ -172,33 +190,39 @@ export default function DailyActivityInput() {
               <label className="text-sm font-medium">商談数</label>
               <Input
                 type="number"
-                min="0"
+                id="meetings"
+                name="meetings"
                 value={formData.meetings}
-                onChange={(e) => handleInputChange('meetings', parseInt(e.target.value) || 0)}
+                onChange={handleChange}
+                min="0"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">トライアル成約数</label>
               <Input
                 type="number"
-                min="0"
+                id="trials"
+                name="trials"
                 value={formData.trials}
-                onChange={(e) => handleInputChange('trials', parseInt(e.target.value) || 0)}
+                onChange={handleChange}
+                min="0"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">契約数</label>
               <Input
                 type="number"
-                min="0"
+                id="contracts"
+                name="contracts"
                 value={formData.contracts}
-                onChange={(e) => handleInputChange('contracts', parseInt(e.target.value) || 0)}
+                onChange={handleChange}
+                min="0"
               />
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? (
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 保存中...
