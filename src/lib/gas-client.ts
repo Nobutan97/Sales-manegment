@@ -1,17 +1,28 @@
-// 型定義
+// 基本的なレスポンス型
 export interface GASResponse<T = any> {
   success: boolean;
-  message?: string;
   data?: T;
   error?: string;
 }
 
+// 基本的なアクション型
+export type GASAction = 
+  | 'getSalespersons'
+  | 'addSalesperson'
+  | 'getProspects'
+  | 'addProspect'
+  | 'updateProspect'
+  | 'deleteProspect'
+  | 'getActivities'
+  | 'addActivity'
+  | 'updateActivity'
+  | 'deleteActivity';
+
+// データ型
 export interface Salesperson {
   id: string;
   name: string;
   email: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface Prospect {
@@ -22,11 +33,9 @@ export interface Prospect {
   status: string;
   notes: string;
   salesperson_id: string;
-  created_at: string;
-  updated_at: string;
 }
 
-export interface DailyActivity {
+export interface Activity {
   id: string;
   date: string;
   salesperson_id: string;
@@ -35,31 +44,17 @@ export interface DailyActivity {
   meetings: number;
   trials: number;
   contracts: number;
-  created_at: string;
-  updated_at: string;
 }
 
-export interface SheetData {
-  salespersons: Salesperson[];
-  prospects: Prospect[];
-  activities: DailyActivity[];
-}
-
-export type GASAction = 
-  | 'addSalesperson'
-  | 'addProspect'
-  | 'addActivity'
-  | 'updateActivity'
-  | 'deleteActivity'
-  | 'prospects/update'
-  | 'prospects/delete'
-  | 'prospects/create';
-
-const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL;
-
-export const fetchFromGAS = async (): Promise<GASResponse<SheetData>> => {
+// GASとの通信関数
+export async function fetchFromGAS<T>(action: GASAction): Promise<GASResponse<T>> {
   try {
-    const response = await fetch(process.env.NEXT_PUBLIC_GAS_URL || '', {
+    const url = process.env.NEXT_PUBLIC_GAS_URL;
+    if (!url) {
+      throw new Error('GAS URLが設定されていません');
+    }
+
+    const response = await fetch(`${url}?action=${action}`, {
       method: 'GET',
       mode: 'cors',
     });
@@ -72,53 +67,43 @@ export const fetchFromGAS = async (): Promise<GASResponse<SheetData>> => {
     return data;
   } catch (error) {
     console.error('Error fetching from GAS:', error);
-    throw error;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
-};
+}
 
-export async function postToGAS<T = any>(
+export async function postToGAS<T>(
   action: GASAction,
   data: any
 ): Promise<GASResponse<T>> {
   try {
-    if (!GAS_URL) {
-      throw new Error('GAS_URLが設定されていません');
+    const url = process.env.NEXT_PUBLIC_GAS_URL;
+    if (!url) {
+      throw new Error('GAS URLが設定されていません');
     }
 
-    console.log('Posting to GAS:', { action, data });
-
-    const response = await fetch(GAS_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       mode: 'cors',
-      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
       body: JSON.stringify({ action, data }),
-      cache: 'no-store',
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GAS response error:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorText,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-      throw new Error(`データの送信に失敗しました (${response.status}: ${response.statusText})`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log('GAS response:', result);
-
-    if (!result.success) {
-      throw new Error(result.message || 'データの送信に失敗しました');
-    }
     return result;
   } catch (error) {
     console.error('Error posting to GAS:', error);
-    throw error;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 } 
