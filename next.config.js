@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
   images: {
     unoptimized: true,
   },
@@ -20,7 +21,7 @@ const nextConfig = {
     return config;
   },
   env: {
-    NEXT_PUBLIC_GAS_URL: process.env.GAS_URL,
+    NEXT_PUBLIC_GAS_URL: 'https://script.google.com/macros/s/AKfycbwWiIWzH59AJ7QaRMy2WsVd0nUMIg-z8kkWZ_QWzlAGKpq_l-HSlTiz5pYaVSFumXzZwA/exec',
   },
 };
 
