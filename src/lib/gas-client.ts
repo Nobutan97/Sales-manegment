@@ -48,17 +48,9 @@ export interface Activity {
 // GASとの通信関数
 export async function fetchFromGAS(): Promise<GASResponse> {
   try {
-    const url = process.env.NEXT_PUBLIC_GAS_URL;
-    if (!url) {
-      throw new Error('GAS URLが設定されていません');
-    }
-
-    const response = await fetch(url, {
+    const response = await fetch(process.env.NEXT_PUBLIC_GAS_URL || '', {
       method: 'GET',
       mode: 'cors',
-      headers: {
-        'Content-Type': 'application/json',
-      },
     });
 
     if (!response.ok) {
@@ -76,20 +68,12 @@ export async function fetchFromGAS(): Promise<GASResponse> {
   }
 }
 
-export async function postToGAS(action: GASAction, data: any): Promise<GASResponse> {
+export async function postToGAS(action: string, data: any): Promise<GASResponse> {
   try {
-    const url = process.env.NEXT_PUBLIC_GAS_URL;
-    if (!url) {
-      throw new Error('GAS URLが設定されていません');
-    }
-
-    const response = await fetch(url, {
+    const response = await fetch(process.env.NEXT_PUBLIC_GAS_URL || '', {
       method: 'POST',
       mode: 'cors',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ action, data }),
+      body: JSON.stringify({ action, data })
     });
 
     if (!response.ok) {
