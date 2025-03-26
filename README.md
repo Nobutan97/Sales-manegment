@@ -41,9 +41,8 @@
   - shadcn/ui
 
 - バックエンド
-  - Next.js API Routes
-  - Prisma ORM
-  - SQLite
+  - Google Apps Script
+  - Google Sheets API
 
 ## セットアップ
 
@@ -58,10 +57,10 @@ cd 営業管理
 npm install
 ```
 
-3. データベースのセットアップ
-```bash
-npx prisma generate
-npx prisma db push
+3. 環境変数の設定
+`.env.local`ファイルを作成し、以下の変数を設定：
+```
+NEXT_PUBLIC_GAS_URL=あなたのGoogle Apps ScriptのデプロイURL
 ```
 
 4. 開発サーバーの起動
@@ -91,6 +90,7 @@ npm run dev
 - データの削除は元に戻せません
 - 月次データは月初から月末までの集計です
 - 同じ日付のデータを入力すると上書きされます
+- Google Sheets APIの制限に注意してください
 
 ## ライセンス
 
