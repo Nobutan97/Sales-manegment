@@ -70,6 +70,7 @@ export async function fetchFromGAS(): Promise<GASResponse<SheetData>> {
     const response = await fetch(GAS_URL, {
       method: 'GET',
       mode: 'cors',
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -115,6 +116,7 @@ export async function postToGAS<T = any>(
     const response = await fetch(GAS_URL, {
       method: 'POST',
       mode: 'cors',
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
