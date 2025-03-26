@@ -1,18 +1,4 @@
-import { google } from 'googleapis';
-import { JWT } from 'google-auth-library';
-
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
-
-// 認証情報の設定
-const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
-
-const auth = new JWT({
-  email: credentials.client_email,
-  key: credentials.private_key,
-  scopes: SCOPES,
-});
-
-const sheets = google.sheets({ version: 'v4', auth });
+import { fetchFromGAS, postToGAS } from './gas-client';
 
 export interface SalesData {
   date: string;
@@ -36,11 +22,11 @@ export interface ProspectData {
 
 export async function getSalesData(): Promise<SalesData[]> {
   try {
-    const response = await fetch('/api/sales');
-    if (!response.ok) {
+    const response = await fetchFromGAS();
+    if (!response.success) {
       throw new Error('Failed to fetch sales data');
     }
-    return response.json();
+    return response.data?.sales || [];
   } catch (error) {
     console.error('Error fetching sales data:', error);
     return [];
@@ -49,11 +35,11 @@ export async function getSalesData(): Promise<SalesData[]> {
 
 export async function getProspects(): Promise<ProspectData[]> {
   try {
-    const response = await fetch('/api/prospects');
-    if (!response.ok) {
+    const response = await fetchFromGAS();
+    if (!response.success) {
       throw new Error('Failed to fetch prospects');
     }
-    return response.json();
+    return response.data?.prospects || [];
   } catch (error) {
     console.error('Error fetching prospects:', error);
     return [];
@@ -62,16 +48,9 @@ export async function getProspects(): Promise<ProspectData[]> {
 
 export async function addSalesData(data: SalesData): Promise<void> {
   try {
-    const response = await fetch('/api/sales', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to add sales data');
+    const response = await postToGAS('sales', data);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to add sales data');
     }
   } catch (error) {
     console.error('Error adding sales data:', error);
@@ -81,16 +60,9 @@ export async function addSalesData(data: SalesData): Promise<void> {
 
 export async function addProspect(data: ProspectData): Promise<void> {
   try {
-    const response = await fetch('/api/prospects', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to add prospect');
+    const response = await postToGAS('prospects', data);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to add prospect');
     }
   } catch (error) {
     console.error('Error adding prospect:', error);
