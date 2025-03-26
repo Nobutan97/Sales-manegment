@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
 
 interface Status {
   id: number;
@@ -97,26 +98,16 @@ const ProspectManagement = () => {
 
       if (editingId) {
         // 既存案件の更新
-        const response = await fetch(`/api/prospects?id=${editingId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ id: editingId, ...body }),
-        });
-
-        if (!response.ok) throw new Error('案件の更新に失敗しました');
+        const response = await postToGAS('prospects/update', { id: editingId, ...body });
+        if (!response.success) {
+          throw new Error(response.message || '案件の更新に失敗しました');
+        }
       } else {
         // 新規案件の追加
-        const response = await fetch('/api/prospects', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (!response.ok) throw new Error('案件の追加に失敗しました');
+        const response = await postToGAS('prospects/create', body);
+        if (!response.success) {
+          throw new Error(response.message || '案件の追加に失敗しました');
+        }
       }
 
       // データを再取得
@@ -157,11 +148,10 @@ const ProspectManagement = () => {
     if (!confirm('この案件を削除してもよろしいですか？')) return;
 
     try {
-      const response = await fetch(`/api/prospects?id=${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('案件の削除に失敗しました');
+      const response = await postToGAS('prospects/delete', { id });
+      if (!response.success) {
+        throw new Error(response.message || '案件の削除に失敗しました');
+      }
 
       // データを再取得
       fetchProspects();
@@ -173,15 +163,13 @@ const ProspectManagement = () => {
   // 案件データの取得
   const fetchProspects = async () => {
     try {
-      const url = salespersonId 
-        ? `/api/prospects?salespersonId=${salespersonId}`
-        : '/api/prospects';
+      const response = await fetchFromGAS();
+      if (!response.success) {
+        throw new Error(response.message || '案件データの取得に失敗しました');
+      }
       
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('案件データの取得に失敗しました');
-      
-      const data = await response.json();
-      setProspects(data);
+      const prospects = response.data?.prospects || [];
+      setProspects(prospects);
       setError(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
