@@ -20,8 +20,7 @@ const nextConfig = {
     return config;
   },
   env: {
-    GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
-    GOOGLE_CREDENTIALS: process.env.GOOGLE_CREDENTIALS,
+    NEXT_PUBLIC_GAS_URL: process.env.GAS_URL,
   },
 };
 

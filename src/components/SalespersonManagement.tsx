@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
 
 interface Salesperson {
   id: string;
@@ -20,9 +21,7 @@ export default function SalespersonManagement() {
 
   const fetchSalespersons = async () => {
     try {
-      const response = await fetch('/api/salespersons');
-      if (!response.ok) throw new Error('担当者データの取得に失敗しました');
-      const data = await response.json();
+      const data = await fetchFromGAS();
       setSalespersons(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
@@ -41,17 +40,12 @@ export default function SalespersonManagement() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/salespersons', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newName.trim(),
-        }),
-      });
-
-      if (!response.ok) throw new Error('担当者の追加に失敗しました');
+      const id = crypto.randomUUID();
+      const response = await postToGAS({ id, name: newName.trim() });
+      
+      if (!response.success) {
+        throw new Error('担当者の追加に失敗しました');
+      }
       
       setNewName('');
       fetchSalespersons();
@@ -63,37 +57,9 @@ export default function SalespersonManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('この担当者を削除してもよろしいですか？')) return;
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch('/api/salespersons', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id }),
-      });
-
-      if (!response.ok) throw new Error('担当者の削除に失敗しました');
-      
-      fetchSalespersons();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
-    } finally {
-      setIsSubmitting(false);
-    }
+    // 削除機能は現在サポートされていません
+    alert('削除機能は現在サポートされていません');
   };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-6">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card>
@@ -129,7 +95,11 @@ export default function SalespersonManagement() {
         </form>
 
         <div className="space-y-2">
-          {salespersons.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : salespersons.length === 0 ? (
             <p className="text-gray-500 text-center py-4">
               担当者が登録されていません
             </p>

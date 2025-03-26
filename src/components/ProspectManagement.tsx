@@ -47,7 +47,7 @@ interface ProspectListProps {
 const ProspectManagement = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const salespersonId = searchParams.get('salespersonId');
+  const salespersonId = searchParams ? searchParams.get('salespersonId') : null;
 
   // ステータスの定義
   const statuses: Status[] = [
