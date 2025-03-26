@@ -112,7 +112,7 @@ const PersonalDashboard = ({ salespersonId }: { salespersonId: string }) => {
         setTimeSeriesData(timeData);
 
         // パイプラインデータの設定
-        const pipeline = prospectsData.filter(p => p.salespersonId === salespersonId).reduce((acc: Pipeline[], prospect: ProspectData) => {
+        const pipeline = prospectsData.filter((p: ProspectData) => p.salespersonId === salespersonId).reduce((acc: Pipeline[], prospect: ProspectData) => {
           const stage = prospect.status;
           const existingStage = acc.find((s: Pipeline) => s.ステージ === stage);
           

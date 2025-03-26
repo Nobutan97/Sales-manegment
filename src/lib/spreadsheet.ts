@@ -31,6 +31,7 @@ export interface ProspectData {
   nextAction: string;
   nextActionDate: string;
   amount: number;
+  salespersonId: string;
 }
 
 export async function getSalesData(): Promise<SalesData[]> {
