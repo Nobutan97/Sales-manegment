@@ -44,6 +44,8 @@ export interface SheetData {
   activities: DailyActivity[];
 }
 
+export type GASAction = 'addSalesperson' | 'addProspect' | 'addActivity';
+
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL;
 
 export async function fetchFromGAS(): Promise<SheetData> {
@@ -77,7 +79,7 @@ export async function fetchFromGAS(): Promise<SheetData> {
 }
 
 export async function postToGAS<T = any>(
-  action: 'addSalesperson' | 'addProspect' | 'addActivity',
+  action: GASAction,
   data: any
 ): Promise<GASResponse<T>> {
   try {

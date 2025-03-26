@@ -19,6 +19,7 @@ interface FormData {
 
 const DailyInputForm = () => {
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     date: new Date().toISOString().split('T')[0],
     salesperson_id: '',
@@ -29,7 +30,6 @@ const DailyInputForm = () => {
     contracts: 0
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -48,7 +48,15 @@ const DailyInputForm = () => {
     setSuccess(false);
 
     try {
-      const response = await postToGAS('addActivity', formData);
+      const response = await postToGAS('addActivity', {
+        date: formData.date,
+        salesperson_id: formData.salesperson_id,
+        approaches: formData.approaches,
+        appointments: formData.appointments,
+        meetings: formData.meetings,
+        trials: formData.trials,
+        contracts: formData.contracts
+      });
       
       if (response.success) {
         toast({
@@ -57,14 +65,14 @@ const DailyInputForm = () => {
         });
         
         // 数値フィールドをリセット
-        setFormData({
-          ...formData,
+        setFormData(prev => ({
+          ...prev,
           approaches: 0,
           appointments: 0,
           meetings: 0,
           trials: 0,
           contracts: 0
-        });
+        }));
       }
     } catch (error) {
       toast({
