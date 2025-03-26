@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 import { postToGAS } from '@/lib/gas-client';
+import { useToast } from '@/components/ui/use-toast';
 
 interface FormData {
   date: string;
-  salesPerson: string;
+  salesperson_id: string;
   approaches: number;
   appointments: number;
   meetings: number;
@@ -17,9 +18,10 @@ interface FormData {
 }
 
 const DailyInputForm = () => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState<FormData>({
     date: new Date().toISOString().split('T')[0],
-    salesPerson: '',
+    salesperson_id: '',
     approaches: 0,
     appointments: 0,
     meetings: 0,
@@ -31,12 +33,12 @@ const DailyInputForm = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: name === 'date' ? value : parseInt(value) || 0
-    });
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'date' ? value : Number(value)
+    }));
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -46,23 +48,30 @@ const DailyInputForm = () => {
     setSuccess(false);
 
     try {
-      const response = await postToGAS('sales', formData);
-      if (!response.success) {
-        throw new Error(response.message || 'データの送信に失敗しました');
+      const response = await postToGAS('addActivity', formData);
+      
+      if (response.success) {
+        toast({
+          title: '成功',
+          description: '活動記録を保存しました',
+        });
+        
+        // 数値フィールドをリセット
+        setFormData({
+          ...formData,
+          approaches: 0,
+          appointments: 0,
+          meetings: 0,
+          trials: 0,
+          contracts: 0
+        });
       }
-
-      setSuccess(true);
-      // 数値フィールドをリセット
-      setFormData({
-        ...formData,
-        approaches: 0,
-        appointments: 0,
-        meetings: 0,
-        trials: 0,
-        contracts: 0
-      });
     } catch (error) {
-      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
+      toast({
+        title: 'エラー',
+        description: error instanceof Error ? error.message : '活動記録の保存に失敗しました',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -88,105 +97,127 @@ const DailyInputForm = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">日付</label>
+                <label htmlFor="date" className="block text-sm font-medium">
+                  日付
+                </label>
                 <input
                   type="date"
+                  id="date"
                   name="date"
                   value={formData.date}
                   onChange={handleChange}
-                  className="w-full p-2 border rounded"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">営業担当者</label>
-                <select
-                  name="salesPerson"
-                  value={formData.salesPerson}
+                <label htmlFor="salesperson_id" className="block text-sm font-medium">
+                  営業担当者ID
+                </label>
+                <input
+                  type="text"
+                  id="salesperson_id"
+                  name="salesperson_id"
+                  value={formData.salesperson_id}
                   onChange={handleChange}
-                  className="w-full p-2 border rounded"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   required
-                >
-                  <option value="">選択してください</option>
-                  <option value="鈴木">鈴木</option>
-                  <option value="田中">田中</option>
-                  <option value="佐藤">佐藤</option>
-                </select>
+                />
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">アプローチ数</label>
+                <label htmlFor="approaches" className="block text-sm font-medium">
+                  アプローチ数
+                </label>
                 <input
                   type="number"
+                  id="approaches"
                   name="approaches"
-                  min="0"
                   value={formData.approaches}
                   onChange={handleChange}
-                  className="w-full p-2 border rounded"
+                  min="0"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">アポイントメント数</label>
+                <label htmlFor="appointments" className="block text-sm font-medium">
+                  アポイント数
+                </label>
                 <input
                   type="number"
+                  id="appointments"
                   name="appointments"
-                  min="0"
                   value={formData.appointments}
                   onChange={handleChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">商談数</label>
-                <input
-                  type="number"
-                  name="meetings"
                   min="0"
-                  value={formData.meetings}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">トライアル成約数</label>
-                <input
-                  type="number"
-                  name="trials"
-                  min="0"
-                  value={formData.trials}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">契約数</label>
-                <input
-                  type="number"
-                  name="contracts"
-                  min="0"
-                  value={formData.contracts}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  保存中...
-                </div>
-              ) : (
-                '保存する'
-              )}
-            </button>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="meetings" className="block text-sm font-medium">
+                  商談数
+                </label>
+                <input
+                  type="number"
+                  id="meetings"
+                  name="meetings"
+                  value={formData.meetings}
+                  onChange={handleChange}
+                  min="0"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="trials" className="block text-sm font-medium">
+                  トライアル数
+                </label>
+                <input
+                  type="number"
+                  id="trials"
+                  name="trials"
+                  value={formData.trials}
+                  onChange={handleChange}
+                  min="0"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="contracts" className="block text-sm font-medium">
+                  契約数
+                </label>
+                <input
+                  type="number"
+                  id="contracts"
+                  name="contracts"
+                  value={formData.contracts}
+                  onChange={handleChange}
+                  min="0"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    保存中...
+                  </div>
+                ) : (
+                  '保存する'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </CardContent>
