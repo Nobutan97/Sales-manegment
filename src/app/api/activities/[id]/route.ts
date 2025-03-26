@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// 静的パラメータの生成
+export async function generateStaticParams() {
+  return [];
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
