@@ -7,13 +7,12 @@ export interface GASResponse {
 
 // 基本的なアクション型
 export type GASAction = 
-  | 'getSalespersons'
   | 'addSalesperson'
-  | 'getProspects'
+  | 'updateSalesperson'
+  | 'deleteSalesperson'
   | 'addProspect'
   | 'updateProspect'
   | 'deleteProspect'
-  | 'getActivities'
   | 'addActivity'
   | 'updateActivity'
   | 'deleteActivity';
@@ -77,7 +76,7 @@ export async function fetchFromGAS(): Promise<GASResponse> {
   }
 }
 
-export async function postToGAS(data: any): Promise<GASResponse> {
+export async function postToGAS(action: GASAction, data: any): Promise<GASResponse> {
   try {
     const url = process.env.NEXT_PUBLIC_GAS_URL;
     if (!url) {
@@ -90,7 +89,7 @@ export async function postToGAS(data: any): Promise<GASResponse> {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ action, data }),
     });
 
     if (!response.ok) {
