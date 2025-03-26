@@ -7,24 +7,21 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
+import type { Prospect as GASProspect } from '@/lib/gas-client';
 
 interface Status {
   id: number;
   name: string;
 }
 
-interface Prospect {
-  id: string;
+interface Prospect extends Omit<GASProspect, 'status'> {
+  status: number;
   companyName: string;
   contactName: string;
   contactInfo: string;
-  status: number;
   nextAction: string;
   nextActionDate: string;
   salespersonId: string;
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface FormData {
@@ -168,8 +165,18 @@ const ProspectManagement = () => {
         throw new Error(response.message || '案件データの取得に失敗しました');
       }
       
-      const prospects = response.data?.prospects || [];
-      setProspects(prospects);
+      const gasProspects = response.data?.prospects || [];
+      const convertedProspects: Prospect[] = gasProspects.map(p => ({
+        ...p,
+        companyName: p.company,
+        contactName: p.contact,
+        contactInfo: p.email,
+        status: parseInt(p.status),
+        nextAction: p.notes,
+        nextActionDate: p.updated_at,
+        salespersonId: p.salesperson_id
+      }));
+      setProspects(convertedProspects);
       setError(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');

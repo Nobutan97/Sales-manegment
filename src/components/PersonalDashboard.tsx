@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SalesData, ProspectData } from '@/lib/spreadsheet';
 import { fetchFromGAS } from '@/lib/gas-client';
+import type { DailyActivity, Prospect } from '@/lib/gas-client';
 
 interface PersonalKPI {
   salesPerson: string;
@@ -67,18 +67,18 @@ const PersonalDashboard = ({ salespersonId }: { salespersonId: string }) => {
           throw new Error(response.message || 'データの取得に失敗しました');
         }
         
-        const salesData = response.data?.sales || [];
-        const prospectsData = response.data?.prospects || [];
+        const activities = response.data?.activities || [];
+        const prospects = response.data?.prospects || [];
         
         // KPIデータの計算
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
-        const monthData = salesData.filter((data: SalesData) => {
+        const monthData = activities.filter((data) => {
           const [year, month] = data.date.split('-').map(Number);
           return year === currentYear && month === currentMonth;
         });
 
-        const totalData = monthData.reduce((acc: { アプローチ数: number; アポ数: number; 商談数: number; 契約数: number }, curr: SalesData) => ({
+        const totalData = monthData.reduce((acc: { アプローチ数: number; アポ数: number; 商談数: number; 契約数: number }, curr) => ({
           アプローチ数: acc.アプローチ数 + curr.approaches,
           アポ数: acc.アポ数 + curr.appointments,
           商談数: acc.商談数 + curr.meetings,
@@ -98,7 +98,7 @@ const PersonalDashboard = ({ salespersonId }: { salespersonId: string }) => {
         setKpiData(kpi);
 
         // 時系列データの設定
-        const timeData = salesData.map((data: SalesData) => ({
+        const timeData = activities.map((data) => ({
           date: data.date,
           アプローチ数: data.approaches,
           アポ数: data.appointments,
@@ -112,29 +112,29 @@ const PersonalDashboard = ({ salespersonId }: { salespersonId: string }) => {
         setTimeSeriesData(timeData);
 
         // パイプラインデータの設定
-        const pipeline = prospectsData.filter((p: ProspectData) => p.salespersonId === salespersonId).reduce((acc: Pipeline[], prospect: ProspectData) => {
+        const pipeline = prospects.filter((p) => p.salesperson_id === salespersonId).reduce((acc: Pipeline[], prospect) => {
           const stage = prospect.status;
           const existingStage = acc.find((s: Pipeline) => s.ステージ === stage);
           
           if (existingStage) {
             existingStage.件数++;
             existingStage.案件リスト.push({
-              会社名: prospect.companyName,
-              担当者名: prospect.contactPerson,
-              次回アクション: prospect.nextAction,
-              次回アクション日: prospect.nextActionDate,
-              商談金額: prospect.amount,
+              会社名: prospect.company,
+              担当者名: prospect.contact,
+              次回アクション: prospect.notes,
+              次回アクション日: prospect.updated_at,
+              商談金額: 0, // この値は現在のAPIでは提供されていません
             });
           } else {
             acc.push({
               ステージ: stage,
               件数: 1,
               案件リスト: [{
-                会社名: prospect.companyName,
-                担当者名: prospect.contactPerson,
-                次回アクション: prospect.nextAction,
-                次回アクション日: prospect.nextActionDate,
-                商談金額: prospect.amount,
+                会社名: prospect.company,
+                担当者名: prospect.contact,
+                次回アクション: prospect.notes,
+                次回アクション日: prospect.updated_at,
+                商談金額: 0, // この値は現在のAPIでは提供されていません
               }],
             });
           }

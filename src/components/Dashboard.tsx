@@ -8,7 +8,7 @@ import { Loader2, Pencil, Trash2, X, Check } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
-import type { DailyActivity } from '@/lib/gas-client';
+import type { DailyActivity, Salesperson } from '@/lib/gas-client';
 import { useToast } from '@/components/ui/use-toast';
 
 interface DashboardData {
@@ -21,23 +21,37 @@ interface DashboardData {
   contractRate: number;
 }
 
-interface EditingActivity extends DailyActivity {}
+interface ActivityWithSalesperson extends DailyActivity {
+  salesperson?: Salesperson;
+}
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const [activities, setActivities] = useState<DailyActivity[]>([]);
+  const [activities, setActivities] = useState<ActivityWithSalesperson[]>([]);
+  const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(
     format(new Date(), 'yyyy-MM')
   );
-  const [editingActivity, setEditingActivity] = useState<EditingActivity | null>(null);
+  const [editingActivity, setEditingActivity] = useState<ActivityWithSalesperson | null>(null);
 
   const fetchData = async () => {
     try {
       const response = await fetchFromGAS();
-      if (response.success && response.data) {
-        setActivities(response.data.activities || []);
+      if (response.success && response.data?.activities && response.data?.salespersons) {
+        const { activities, salespersons } = response.data;
+        const activitiesWithSalesperson = activities.map(activity => {
+          const salesperson = salespersons.find(
+            s => s.id === activity.salesperson_id
+          );
+          return {
+            ...activity,
+            salesperson
+          };
+        });
+        setActivities(activitiesWithSalesperson);
+        setSalespersons(salespersons);
       } else {
         throw new Error('データの取得に失敗しました');
       }
@@ -126,7 +140,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleEditInputChange = (field: keyof EditingActivity, value: string) => {
+  const handleEditInputChange = (field: keyof ActivityWithSalesperson, value: string) => {
     if (!editingActivity) return;
     setEditingActivity({
       ...editingActivity,
@@ -223,7 +237,7 @@ export default function Dashboard() {
                     <td className="px-4 py-2">
                       {format(new Date(activity.date), 'M/d (E)', { locale: ja })}
                     </td>
-                    <td className="px-4 py-2">{activity.salesperson.name}</td>
+                    <td className="px-4 py-2">{activity.salesperson?.name || '不明'}</td>
                     {editingActivity?.id === activity.id ? (
                       <>
                         <td className="px-4 py-2">
@@ -292,7 +306,7 @@ export default function Dashboard() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleEdit(activity)}
+                              onClick={() => setEditingActivity(activity)}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>

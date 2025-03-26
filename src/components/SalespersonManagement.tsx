@@ -22,7 +22,7 @@ export default function SalespersonManagement() {
   const fetchSalespersons = async () => {
     try {
       const response = await fetchFromGAS();
-      setSalespersons(response.salespersons || []);
+      setSalespersons(response.data?.salespersons || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
     } finally {
