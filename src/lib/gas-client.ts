@@ -48,7 +48,7 @@ export type GASAction = 'addSalesperson' | 'addProspect' | 'addActivity';
 
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL;
 
-export async function fetchFromGAS(): Promise<SheetData> {
+export async function fetchFromGAS(): Promise<GASResponse<SheetData>> {
   try {
     if (!GAS_URL) {
       throw new Error('GAS_URLが設定されていません');
@@ -70,8 +70,11 @@ export async function fetchFromGAS(): Promise<SheetData> {
       throw new Error(`データの取得に失敗しました (${response.status})`);
     }
 
-    const data = await response.json();
-    return data;
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'データの取得に失敗しました');
+    }
+    return result;
   } catch (error) {
     console.error('Error fetching from GAS:', error);
     throw error;

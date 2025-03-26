@@ -48,7 +48,11 @@ export default function DailyActivityInput() {
   const fetchSalespersons = async () => {
     try {
       const response = await fetchFromGAS();
-      setSalespersons(response.salespersons || []);
+      if (response.success && response.data) {
+        setSalespersons(response.data.salespersons || []);
+      } else {
+        throw new Error('データの取得に失敗しました');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
     } finally {
