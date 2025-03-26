@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DailyInputForm from "@/components/DailyInputForm"
 import Dashboard from "@/components/Dashboard"
@@ -9,6 +9,8 @@ import PersonalDashboard from "@/components/PersonalDashboard"
 import SalespersonManagement from '@/components/SalespersonManagement';
 
 export default function Home() {
+  const [selectedSalesperson, setSelectedSalesperson] = useState("1");
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -29,7 +31,7 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent value="personal">
-              <PersonalDashboard />
+              <PersonalDashboard salespersonId={selectedSalesperson} />
             </TabsContent>
 
             <TabsContent value="daily-input">
