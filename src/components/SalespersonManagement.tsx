@@ -40,7 +40,7 @@ export default function SalespersonManagement() {
     
     setIsSubmitting(true);
     try {
-      const response = await postToGAS({ name: newName.trim() });
+      const response = await postToGAS('salespersons', { name: newName.trim() });
       if (!response.success) {
         throw new Error(response.message || '担当者の追加に失敗しました');
       }
@@ -48,6 +48,7 @@ export default function SalespersonManagement() {
       await fetchSalespersons();
       setError('');
     } catch (error) {
+      console.error('Error adding salesperson:', error);
       setError(error instanceof Error ? error.message : '担当者の追加に失敗しました');
     } finally {
       setIsSubmitting(false);
