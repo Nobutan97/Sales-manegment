@@ -36,21 +36,20 @@ export default function SalespersonManagement() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newName.trim()) return;
-
     setIsSubmitting(true);
     try {
-      const id = crypto.randomUUID();
-      const response = await postToGAS({ id, name: newName.trim() });
-      
+      console.log('送信開始:', { name: newName });
+      const response = await postToGAS('salespersons', { name: newName.trim() });
+      console.log('送信結果:', response);
       if (!response.success) {
-        throw new Error('担当者の追加に失敗しました');
+        throw new Error(response.message || '担当者の追加に失敗しました');
       }
-      
       setNewName('');
-      fetchSalespersons();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+      await fetchSalespersons();
+      setError('');
+    } catch (error) {
+      console.error('エラー詳細:', error);
+      setError(error instanceof Error ? error.message : '担当者の追加に失敗しました');
     } finally {
       setIsSubmitting(false);
     }

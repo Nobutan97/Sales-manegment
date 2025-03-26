@@ -14,15 +14,15 @@ export async function fetchFromGAS() {
   }
 }
 
-export async function postToGAS(data: { id: string; name: string }) {
+export async function postToGAS(action: string, data: any) {
   try {
     const response = await fetch(GAS_URL || '', {
       method: 'POST',
       mode: 'cors',
       headers: {
-        'Content-Type': 'text/plain',
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ action, data }),
     });
     if (!response.ok) throw new Error('データの送信に失敗しました');
     return await response.json();
