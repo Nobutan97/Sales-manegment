@@ -21,8 +21,8 @@ export default function SalespersonManagement() {
 
   const fetchSalespersons = async () => {
     try {
-      const data = await fetchFromGAS();
-      setSalespersons(data);
+      const response = await fetchFromGAS();
+      setSalespersons(response.salespersons || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
     } finally {
@@ -36,6 +36,8 @@ export default function SalespersonManagement() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!newName.trim()) return;
+    
     setIsSubmitting(true);
     try {
       console.log('送信開始:', { name: newName });
