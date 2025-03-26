@@ -1,8 +1,9 @@
 // 型定義
 export interface GASResponse<T = any> {
   success: boolean;
-  message: string;
+  message?: string;
   data?: T;
+  error?: string;
 }
 
 export interface Salesperson {
@@ -53,17 +54,7 @@ export type GASAction =
 
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL;
 
-export interface GASResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-export interface SalespersonResponse {
-  salespersons: Salesperson[];
-}
-
-export const fetchFromGAS = async (): Promise<GASResponse<SalespersonResponse>> => {
+export const fetchFromGAS = async (): Promise<GASResponse<SheetData>> => {
   try {
     const response = await fetch(process.env.NEXT_PUBLIC_GAS_URL || '', {
       method: 'GET',

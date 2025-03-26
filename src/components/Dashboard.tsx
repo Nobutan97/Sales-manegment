@@ -39,7 +39,7 @@ export default function Dashboard() {
   const fetchData = async () => {
     try {
       const response = await fetchFromGAS();
-      if (response.success && response.data?.activities && response.data?.salespersons) {
+      if (response.success && response.data) {
         const { activities, salespersons } = response.data;
         const activitiesWithSalesperson = activities.map(activity => {
           const salesperson = salespersons.find(
