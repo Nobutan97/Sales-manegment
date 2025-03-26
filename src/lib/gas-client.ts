@@ -46,6 +46,8 @@ export interface SheetData {
 
 export type GASAction = 
   | 'addSalesperson' 
+  | 'updateSalesperson'
+  | 'deleteSalesperson'
   | 'addProspect' 
   | 'addActivity'
   | 'updateActivity'
@@ -63,6 +65,8 @@ export async function fetchFromGAS(): Promise<GASResponse<SheetData>> {
       throw new Error('GAS_URLが設定されていません');
     }
 
+    console.log('Fetching from GAS URL:', GAS_URL);
+
     const response = await fetch(GAS_URL, {
       method: 'GET',
       mode: 'cors',
@@ -75,11 +79,18 @@ export async function fetchFromGAS(): Promise<GASResponse<SheetData>> {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('GAS response error:', errorText);
-      throw new Error(`データの取得に失敗しました (${response.status})`);
+      console.error('GAS response error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+      throw new Error(`データの取得に失敗しました (${response.status}: ${response.statusText})`);
     }
 
     const result = await response.json();
+    console.log('GAS response:', result);
+
     if (!result.success) {
       throw new Error(result.message || 'データの取得に失敗しました');
     }
@@ -99,6 +110,8 @@ export async function postToGAS<T = any>(
       throw new Error('GAS_URLが設定されていません');
     }
 
+    console.log('Posting to GAS:', { action, data });
+
     const response = await fetch(GAS_URL, {
       method: 'POST',
       mode: 'cors',
@@ -112,11 +125,18 @@ export async function postToGAS<T = any>(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('GAS response error:', errorText);
-      throw new Error(`データの送信に失敗しました (${response.status})`);
+      console.error('GAS response error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+      throw new Error(`データの送信に失敗しました (${response.status}: ${response.statusText})`);
     }
 
     const result = await response.json();
+    console.log('GAS response:', result);
+
     if (!result.success) {
       throw new Error(result.message || 'データの送信に失敗しました');
     }

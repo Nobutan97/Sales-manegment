@@ -22,8 +22,12 @@ export default function SalespersonManagement() {
   const fetchSalespersons = async () => {
     try {
       const response = await fetchFromGAS();
+      if (!response.success) {
+        throw new Error(response.message || 'データの取得に失敗しました');
+      }
       setSalespersons(response.data?.salespersons || []);
     } catch (err) {
+      console.error('Error fetching salespersons:', err);
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
     } finally {
       setLoading(false);
@@ -40,7 +44,7 @@ export default function SalespersonManagement() {
     
     setIsSubmitting(true);
     try {
-      const response = await postToGAS('salespersons', { name: newName.trim() });
+      const response = await postToGAS('addSalesperson', { name: newName.trim() });
       if (!response.success) {
         throw new Error(response.message || '担当者の追加に失敗しました');
       }
