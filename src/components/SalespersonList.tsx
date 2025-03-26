@@ -3,32 +3,25 @@
 import { useState, useEffect } from 'react';
 import { fetchFromGAS, postToGAS } from '@/lib/gas-client';
 import type { Salesperson } from '@/lib/gas-client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
 
 export default function SalespersonList() {
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const { toast } = useToast();
 
   // 担当者一覧を取得
   const fetchSalespersons = async () => {
     try {
-      const response = await fetchFromGAS<{ salespersons: Salesperson[] }>('getSalespersons');
-      if (response.success && response.data) {
+      const response = await fetchFromGAS();
+      if (response.success && response.data?.salespersons) {
         setSalespersons(response.data.salespersons);
       } else {
-        throw new Error(response.error || '担当者データの取得に失敗しました');
+        setError('担当者データの取得に失敗しました');
       }
     } catch (error) {
-      toast({
-        title: 'エラー',
-        description: error instanceof Error ? error.message : '担当者データの取得に失敗しました',
-        variant: 'destructive',
-      });
+      setError(error instanceof Error ? error.message : '担当者データの取得に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -38,28 +31,20 @@ export default function SalespersonList() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await postToGAS('addSalesperson', {
+      const response = await postToGAS({
         name: newName,
         email: newEmail,
       });
 
       if (response.success) {
-        toast({
-          title: '成功',
-          description: '担当者を追加しました',
-        });
         setNewName('');
         setNewEmail('');
         fetchSalespersons();
       } else {
-        throw new Error(response.error || '担当者の追加に失敗しました');
+        setError(response.error || '担当者の追加に失敗しました');
       }
     } catch (error) {
-      toast({
-        title: 'エラー',
-        description: error instanceof Error ? error.message : '担当者の追加に失敗しました',
-        variant: 'destructive',
-      });
+      setError(error instanceof Error ? error.message : '担当者の追加に失敗しました');
     }
   };
 
@@ -72,46 +57,57 @@ export default function SalespersonList() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">営業担当者一覧</h1>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
 
       {/* 担当者追加フォーム */}
       <form onSubmit={handleSubmit} className="mb-8 space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">名前</label>
-          <Input
+          <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
+            className="w-full p-2 border rounded"
             required
           />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">メールアドレス</label>
-          <Input
+          <input
             type="email"
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
+            className="w-full p-2 border rounded"
             required
           />
         </div>
-        <Button type="submit">追加</Button>
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+        >
+          追加
+        </button>
       </form>
 
       {/* 担当者一覧 */}
-      <div className="grid gap-4">
+      <div className="space-y-4">
         {salespersons.length === 0 ? (
           <p>担当者が登録されていません</p>
         ) : (
           salespersons.map((person) => (
             <div
               key={person.id}
-              className="border rounded-lg p-4 flex justify-between items-center"
+              className="border rounded p-4"
             >
-              <div>
-                <h3 className="font-medium">{person.name}</h3>
-                <p className="text-sm text-gray-500">{person.email}</p>
-              </div>
+              <h3 className="font-medium">{person.name}</h3>
+              <p className="text-sm text-gray-500">{person.email}</p>
             </div>
           ))
         )}

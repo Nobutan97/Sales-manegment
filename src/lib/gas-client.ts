@@ -1,7 +1,7 @@
 // 基本的なレスポンス型
-export interface GASResponse<T = any> {
+export interface GASResponse {
   success: boolean;
-  data?: T;
+  data?: any;
   error?: string;
 }
 
@@ -47,16 +47,19 @@ export interface Activity {
 }
 
 // GASとの通信関数
-export async function fetchFromGAS<T>(action: GASAction): Promise<GASResponse<T>> {
+export async function fetchFromGAS(): Promise<GASResponse> {
   try {
     const url = process.env.NEXT_PUBLIC_GAS_URL;
     if (!url) {
       throw new Error('GAS URLが設定されていません');
     }
 
-    const response = await fetch(`${url}?action=${action}`, {
+    const response = await fetch(url, {
       method: 'GET',
       mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
@@ -74,10 +77,7 @@ export async function fetchFromGAS<T>(action: GASAction): Promise<GASResponse<T>
   }
 }
 
-export async function postToGAS<T>(
-  action: GASAction,
-  data: any
-): Promise<GASResponse<T>> {
+export async function postToGAS(data: any): Promise<GASResponse> {
   try {
     const url = process.env.NEXT_PUBLIC_GAS_URL;
     if (!url) {
@@ -90,7 +90,7 @@ export async function postToGAS<T>(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action, data }),
+      body: JSON.stringify(data),
     });
 
     if (!response.ok) {
