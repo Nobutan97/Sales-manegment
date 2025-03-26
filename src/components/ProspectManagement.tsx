@@ -4,6 +4,8 @@ import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Status {
   id: number;
@@ -11,13 +13,17 @@ interface Status {
 }
 
 interface Prospect {
-  id: number;
+  id: string;
   companyName: string;
   contactName: string;
   contactInfo: string;
   status: number;
   nextAction: string;
+  nextActionDate: string;
+  salespersonId: string;
   notes: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface FormData {
@@ -26,6 +32,7 @@ interface FormData {
   contactInfo: string;
   status: number;
   nextAction: string;
+  nextActionDate: string;
   notes: string;
 }
 
@@ -33,10 +40,15 @@ interface ProspectListProps {
   prospects: Prospect[];
   statuses: Status[];
   onEdit: (prospect: Prospect) => void;
-  onStatusChange: (prospectId: number, newStatus: number) => void;
+  onDelete: (id: string) => void;
+  onStatusChange: (id: string, newStatus: number) => void;
 }
 
 const ProspectManagement = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const salespersonId = searchParams.get('salespersonId');
+
   // ステータスの定義
   const statuses: Status[] = [
     { id: 1, name: 'アプローチ済' },
@@ -46,14 +58,9 @@ const ProspectManagement = () => {
     { id: 5, name: '契約済' }
   ];
 
-  // ダミーデータ - 実際にはGoogleスプレッドシートから取得
-  const [prospects, setProspects] = useState<Prospect[]>([
-    { id: 1, companyName: '株式会社ABC', contactName: '山田太郎', contactInfo: 'yamada@abc.co.jp', status: 2, nextAction: '2025-04-01', notes: '初回アポ設定済み' },
-    { id: 2, companyName: '株式会社DEF', contactName: '佐藤次郎', contactInfo: 'sato@def.co.jp', status: 3, nextAction: '2025-04-03', notes: '商談でニーズヒアリング完了' },
-    { id: 3, companyName: '株式会社GHI', contactName: '鈴木三郎', contactInfo: 'suzuki@ghi.co.jp', status: 4, nextAction: '2025-04-15', notes: 'トライアル中、使用感フィードバック待ち' },
-    { id: 4, companyName: '株式会社JKL', contactName: '高橋四郎', contactInfo: 'takahashi@jkl.co.jp', status: 1, nextAction: '2025-03-28', notes: 'アプローチメール送信済み' },
-    { id: 5, companyName: '株式会社MNO', contactName: '田中五郎', contactInfo: 'tanaka@mno.co.jp', status: 5, nextAction: '2025-05-01', notes: '契約済み、導入サポート予定' }
-  ]);
+  const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 新規案件入力用のフォームデータ
   const [formData, setFormData] = useState<FormData>({
@@ -62,11 +69,12 @@ const ProspectManagement = () => {
     contactInfo: '',
     status: 1,
     nextAction: '',
+    nextActionDate: '',
     notes: ''
   });
 
   // 編集中の案件ID
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // フォーム入力ハンドラ
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -78,30 +86,56 @@ const ProspectManagement = () => {
   };
 
   // 案件の追加/更新
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (editingId) {
-      // 既存案件の更新
-      setProspects(prospects.map(prospect => 
-        prospect.id === editingId ? { ...formData, id: editingId } : prospect
-      ));
+    try {
+      const body = {
+        ...formData,
+        salespersonId: salespersonId || undefined
+      };
+
+      if (editingId) {
+        // 既存案件の更新
+        const response = await fetch(`/api/prospects?id=${editingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: editingId, ...body }),
+        });
+
+        if (!response.ok) throw new Error('案件の更新に失敗しました');
+      } else {
+        // 新規案件の追加
+        const response = await fetch('/api/prospects', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) throw new Error('案件の追加に失敗しました');
+      }
+
+      // データを再取得
+      fetchProspects();
+      
+      // フォームリセット
+      setFormData({
+        companyName: '',
+        contactName: '',
+        contactInfo: '',
+        status: 1,
+        nextAction: '',
+        nextActionDate: '',
+        notes: ''
+      });
       setEditingId(null);
-    } else {
-      // 新規案件の追加
-      const newId = Math.max(...prospects.map(p => p.id), 0) + 1;
-      setProspects([...prospects, { ...formData, id: newId }]);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
     }
-    
-    // フォームリセット
-    setFormData({
-      companyName: '',
-      contactName: '',
-      contactInfo: '',
-      status: 1,
-      nextAction: '',
-      notes: ''
-    });
   };
 
   // 案件の編集
@@ -112,44 +146,96 @@ const ProspectManagement = () => {
       contactInfo: prospect.contactInfo,
       status: prospect.status,
       nextAction: prospect.nextAction,
+      nextActionDate: prospect.nextActionDate,
       notes: prospect.notes
     });
     setEditingId(prospect.id);
   };
 
-  // フィルター関数を修正
+  // 案件の削除
+  const handleDelete = async (id: string) => {
+    if (!confirm('この案件を削除してもよろしいですか？')) return;
+
+    try {
+      const response = await fetch(`/api/prospects?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('案件の削除に失敗しました');
+
+      // データを再取得
+      fetchProspects();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
+    }
+  };
+
+  // 案件データの取得
+  const fetchProspects = async () => {
+    try {
+      const url = salespersonId 
+        ? `/api/prospects?salespersonId=${salespersonId}`
+        : '/api/prospects';
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('案件データの取得に失敗しました');
+      
+      const data = await response.json();
+      setProspects(data);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初回マウント時とsalespersonIdの変更時にデータを取得
+  useEffect(() => {
+    fetchProspects();
+  }, [salespersonId]);
+
+  // フィルター関数
   const filterProspects = (prospects: Prospect[], statusId: string) => {
     if (statusId === 'all') return prospects;
     return prospects.filter(p => p.status === parseInt(statusId));
   };
 
-  // ステータス変更ハンドラを修正
-  const handleStatusChange = (prospectId: number, newStatus: number) => {
-    setProspects(prospects.map(prospect => 
-      prospect.id === prospectId ? { ...prospect, status: newStatus } : prospect
-    ));
-  };
+  // ステータス変更ハンドラ
+  const handleStatusChange = async (id: string, newStatus: number) => {
+    try {
+      const prospect = prospects.find(p => p.id === id);
+      if (!prospect) return;
 
-  // ステータス名を取得する関数を修正
-  const getStatusName = (statusId: number) => {
-    const status = statuses.find(s => s.id === statusId);
-    return status ? status.name : '不明';
-  };
+      const response = await fetch(`/api/prospects?id=${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...prospect, status: newStatus }),
+      });
 
-  // ステータスに応じた背景色を取得する関数を修正
-  const getStatusColor = (statusId: number) => {
-    switch(statusId) {
-      case 1: return 'bg-gray-100';
-      case 2: return 'bg-blue-100';
-      case 3: return 'bg-yellow-100';
-      case 4: return 'bg-green-100';
-      case 5: return 'bg-purple-100';
-      default: return 'bg-gray-100';
+      if (!response.ok) throw new Error('ステータスの更新に失敗しました');
+
+      // データを再取得
+      fetchProspects();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '予期せぬエラーが発生しました');
     }
   };
 
+  if (loading) {
+    return <div className="text-center py-4">読み込み中...</div>;
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
+      {error && (
+        <Alert className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="all">全ての案件</TabsTrigger>
@@ -169,7 +255,8 @@ const ProspectManagement = () => {
               <ProspectList 
                 prospects={prospects} 
                 statuses={statuses} 
-                onEdit={handleEdit} 
+                onEdit={handleEdit}
+                onDelete={handleDelete}
                 onStatusChange={handleStatusChange} 
               />
             </CardContent>
@@ -186,7 +273,8 @@ const ProspectManagement = () => {
                 <ProspectList 
                   prospects={filterProspects(prospects, status.id.toString())} 
                   statuses={statuses} 
-                  onEdit={handleEdit} 
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
                   onStatusChange={handleStatusChange} 
                 />
               </CardContent>
@@ -266,9 +354,23 @@ const ProspectManagement = () => {
                 次のアクション
               </label>
               <input
-                type="date"
+                type="text"
                 name="nextAction"
                 value={formData.nextAction}
+                onChange={handleChange}
+                required
+                className="mt-1 block w-full border rounded-md shadow-sm p-2"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                次回アクション日
+              </label>
+              <input
+                type="date"
+                name="nextActionDate"
+                value={formData.nextActionDate}
                 onChange={handleChange}
                 required
                 className="mt-1 block w-full border rounded-md shadow-sm p-2"
@@ -289,15 +391,13 @@ const ProspectManagement = () => {
             </div>
 
             <div className="flex justify-end space-x-3">
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
+              <Button type="submit" variant="default">
                 {editingId ? '更新' : '追加'}
-              </button>
+              </Button>
               {editingId && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => {
                     setEditingId(null);
                     setFormData({
@@ -306,13 +406,13 @@ const ProspectManagement = () => {
                       contactInfo: '',
                       status: 1,
                       nextAction: '',
+                      nextActionDate: '',
                       notes: ''
                     });
                   }}
-                  className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
                 >
                   キャンセル
-                </button>
+                </Button>
               )}
             </div>
           </form>
@@ -323,7 +423,7 @@ const ProspectManagement = () => {
 };
 
 // 案件リストコンポーネント
-const ProspectList = ({ prospects, statuses, onEdit, onStatusChange }: ProspectListProps) => {
+const ProspectList = ({ prospects, statuses, onEdit, onDelete, onStatusChange }: ProspectListProps) => {
   // ステータス名を取得する関数
   const getStatusName = (statusId: number) => {
     const status = statuses.find(s => s.id === statusId);
@@ -373,19 +473,28 @@ const ProspectList = ({ prospects, statuses, onEdit, onStatusChange }: ProspectL
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {prospect.nextAction}
+                  <div>{prospect.nextAction}</div>
+                  <div className="text-xs text-gray-400">{prospect.nextActionDate}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
+                  <Button
                     onClick={() => onEdit(prospect)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-2"
+                    variant="ghost"
+                    className="mr-2"
                   >
                     編集
-                  </button>
+                  </Button>
+                  <Button
+                    onClick={() => onDelete(prospect.id)}
+                    variant="ghost"
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    削除
+                  </Button>
                   <select
                     value={prospect.status}
                     onChange={(e) => onStatusChange(prospect.id, parseInt(e.target.value))}
-                    className="text-sm border rounded p-1"
+                    className="ml-2 text-sm border rounded p-1"
                   >
                     {statuses.map(status => (
                       <option key={status.id} value={status.id}>
