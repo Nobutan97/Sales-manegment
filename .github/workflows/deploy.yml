@@ -22,7 +22,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_GAS_URL: ${{ secrets.NEXT_PUBLIC_GAS_URL }}
+          NEXT_PUBLIC_GAS_URL: 'https://script.google.com/macros/s/AKfycbwWiIWzH59AJ7QaRMy2WsVd0nUMIg-z8kkWZ_QWzlAGKpq_l-HSlTiz5pYaVSFumXzZwA/exec'
           
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
