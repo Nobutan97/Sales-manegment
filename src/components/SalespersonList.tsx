@@ -31,7 +31,7 @@ export default function SalespersonList() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await postToGAS({
+      const response = await postToGAS('addSalesperson', {
         name: newName,
         email: newEmail,
       });
